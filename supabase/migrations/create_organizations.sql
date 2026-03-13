@@ -6,6 +6,9 @@ CREATE TABLE IF NOT EXISTS organizations (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Adicionar coluna owner_id se não existir
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS owner_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
+
 -- Criar tabela organization_members
 CREATE TABLE IF NOT EXISTS organization_members (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
