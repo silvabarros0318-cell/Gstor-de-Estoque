@@ -68,13 +68,13 @@ export default function LoginPage() {
           .upsert({ 
             id: signUpData.user.id, 
             name: name, 
-            role: 'admin',
-            organization_id: signUpData.user.id // Temporário: usar próprio ID como org para teste
+            role: 'admin'
+            // organization_id: signUpData.user.id // Removido temporariamente para debug
           });
         
         if (profileError) {
           console.error('Error creating profile:', profileError);
-          setError('Erro ao criar perfil.');
+          setError(`Erro ao criar perfil: ${profileError.message}`);
           setLoading(false);
           return;
         }
