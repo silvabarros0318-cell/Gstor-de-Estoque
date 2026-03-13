@@ -50,7 +50,8 @@ export default function LoginPage() {
         email,
         password,
         options: {
-          data: { name }
+          data: { name },
+          emailRedirectTo: 'https://gstor-de-estoque.vercel.app/'
         }
       });
 
@@ -62,7 +63,7 @@ export default function LoginPage() {
         await supabase.from('profiles').update({ role: 'admin' }).eq('id', signUpData.user.id);
         
         setLoading(false);
-        showToast('success', 'Conta criada como Administrador! Faça login.');
+        showToast('success', 'Conta criada como Administrador! Verifique seu e-mail para confirmar.');
         setView('login');
         setPassword('');
       } else {
@@ -75,7 +76,9 @@ export default function LoginPage() {
       }
       setLoading(true);
       setError('');
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email);
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'https://gstor-de-estoque.vercel.app/'
+      });
       setLoading(false);
 
       if (resetError) {
