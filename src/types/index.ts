@@ -56,7 +56,7 @@ export interface AlertConfig {
   enabled: boolean;
   whatsappNumber: string;
   minIntervalHours: number;
-  lastAlertSent: Record<string, string>; // productId -> ISO date
+  lastAlertSent: string; // ISO date
 }
 
 export interface Settings {

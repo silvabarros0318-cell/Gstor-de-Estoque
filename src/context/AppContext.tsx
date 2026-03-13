@@ -47,7 +47,12 @@ interface AppContextValue extends AppState {
 const AppContext = createContext<AppContextValue | null>(null);
 
 const DEFAULT_SETTINGS: Settings = {
-  alertConfig: { enabled: true, whatsappNumber: '', minIntervalHours: 24, lastAlertSent: {} }
+  alertConfig: {
+    enabled: false,
+    whatsappNumber: '',
+    minIntervalHours: 24,
+    lastAlertSent: '',
+  }
 };
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -137,7 +142,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             enabled: setData.alert_enabled,
             whatsappNumber: setData.whatsapp_number || '',
             minIntervalHours: setData.min_interval_hours,
-            lastAlertSent: setData.last_alert_sent || {}
+            lastAlertSent: setData.last_alert_sent || ''
           }
         };
       }

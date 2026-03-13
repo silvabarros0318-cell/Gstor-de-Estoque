@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { getStockItems } from '../data/initialData';
+import LowStockMonitor from '../components/LowStockMonitor';
 
 export default function DashboardLayout() {
   const { currentUser, logout, products, categories, movements } = useApp();
@@ -132,6 +133,7 @@ export default function DashboardLayout() {
 
         <main className="page-content">
           <Outlet />
+          <LowStockMonitor />
         </main>
       </div>
     </div>

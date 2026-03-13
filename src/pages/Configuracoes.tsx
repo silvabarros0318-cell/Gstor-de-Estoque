@@ -60,6 +60,7 @@ export default function ConfiguracoesPage() {
         whatsappNumber: whatsapp,
         enabled: alertEnabled,
         minIntervalHours: Number(intervalHours) || 24,
+        lastAlertSent: settings.alertConfig.lastAlertSent,
       },
     });
     showToast('success', 'Configurações de alerta salvas!');

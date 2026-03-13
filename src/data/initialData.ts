@@ -65,7 +65,7 @@ export const INITIAL_SETTINGS: Settings = {
     enabled: true,
     whatsappNumber: '+244 912 345 678',
     minIntervalHours: 24,
-    lastAlertSent: {},
+    lastAlertSent: '',
   },
 };
 
