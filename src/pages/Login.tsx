@@ -50,7 +50,10 @@ export default function LoginPage() {
         email,
         password,
         options: {
-          data: { name },
+          data: { 
+            name,
+            role: 'admin' 
+          },
           emailRedirectTo: 'https://gstor-de-estoque.vercel.app/'
         }
       });
