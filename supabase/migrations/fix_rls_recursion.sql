@@ -17,11 +17,11 @@ $$;
 -- Habilitar RLS nas tabelas principais e criar políticas corrigidas
 -- Nota: Políticas temporariamente permissivas para debug, ajuste conforme necessário
 
--- Profiles (permitir acesso próprio e da organização)
+-- Profiles (temporariamente permissiva para debug)
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
 CREATE POLICY "Users can view own profile" ON profiles
-FOR ALL USING (id = auth.uid());
+FOR ALL USING (true); -- Temporário: permitir tudo para debug
 
 -- Categories
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
