@@ -277,8 +277,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (hasMovements) return { success: false, error: 'Produto possui movimentações e não pode ser excluído. Registre um ajuste de estoque se necessário.' };
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) return { success: false, error: error.message };
-    set(prev => ({ ...prev, products: prev.products.filter(p => p.id !== id) }));
-    return { success: true };  const addMovement = async ({ productId, type, quantity, observation }: any) => {
+    return { success: true };
+  };
+
+  const addMovement = async ({ productId, type, quantity, observation }: any) => {
     if (type === 'saida') {
       const { data: stockView } = await supabase.from('stock_current').select('current_stock').eq('product_id', productId).single();
       const currentStock = stockView?.current_stock || 0;
@@ -342,7 +344,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }));
     }
     return { success: true };
-  }; };
   };
 
   const acceptInvitation = async (token: string, name: string, password: string) => {
