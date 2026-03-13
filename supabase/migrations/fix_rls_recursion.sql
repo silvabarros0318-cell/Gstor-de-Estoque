@@ -1,13 +1,13 @@
 -- Remover foreign key constraint problemática em profiles.organization_id
 ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_organization_id_fkey;
 
--- Limpar dados de demonstração para novas contas começarem vazias
+-- Limpar TODOS os dados para começar do zero e garantir isolamento
 DELETE FROM movements;
 DELETE FROM products;
 DELETE FROM categories;
 DELETE FROM settings;
 DELETE FROM invitations;
--- DELETE FROM profiles WHERE id NOT IN (SELECT auth.uid() FROM auth.users WHERE auth.uid() IS NOT NULL); -- Comentado para não deletar perfis
+DELETE FROM profiles;
 
 -- Adicionar coluna organization_id nas tabelas que não têm
 ALTER TABLE categories ADD COLUMN IF NOT EXISTS organization_id UUID;

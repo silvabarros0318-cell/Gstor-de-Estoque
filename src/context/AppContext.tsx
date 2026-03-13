@@ -390,7 +390,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Também inserimos na nossa tabela local para rastreamento no dashboard
-    await supabase.from('invitations').insert({ email, role });
+    await supabase.from('invitations').insert({ 
+      email, 
+      role,
+      organization_id: currentUser?.organizationId
+    });
 
     // Recarregar convites
     const { data: invData } = await supabase.from('invitations').select('*');
