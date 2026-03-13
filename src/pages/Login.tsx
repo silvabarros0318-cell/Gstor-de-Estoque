@@ -58,20 +58,26 @@ export default function LoginPage() {
         }
       });
 
+      console.log('SignUp data:', signUpData, 'Error:', signUpError);
+
       if (signUpError) {
         setError(signUpError.message);
         setLoading(false);
       } else if (signUpData.user) {
+        console.log('SignUp successful, user ID:', signUpData.user.id);
         // Criar ou atualizar o perfil como admin
-        const { error: profileError } = await supabase
+        const profileData = { 
+          id: signUpData.user.id, 
+          name: name, 
+          role: 'admin',
+          organization_id: signUpData.user.id // Cada usuário é sua própria organização
+        };
+        console.log('Inserting profile:', profileData);
+        const { data: profileInsertData, error: profileError } = await supabase
           .from('profiles')
-          .upsert({ 
-            id: signUpData.user.id, 
-            name: name, 
-            role: 'admin',
-            organization_id: signUpData.user.id // Cada usuário é sua própria organização
-          });
+          .upsert(profileData);
         
+        console.log('Profile upsert result:', { data: profileInsertData, error: profileError });
         if (profileError) {
           console.error('Error creating profile:', profileError);
           setError(`Erro ao criar perfil: ${profileError.message}`);
