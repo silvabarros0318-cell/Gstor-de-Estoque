@@ -1,3 +1,6 @@
+-- Remover foreign key constraint problemática em profiles.organization_id
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_organization_id_fkey;
+
 -- Limpar dados de demonstração para novas contas começarem vazias
 DELETE FROM movements;
 DELETE FROM products;
