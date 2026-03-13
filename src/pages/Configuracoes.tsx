@@ -39,7 +39,7 @@ function SectionCard({ icon, title, subtitle, children }: {
 
 export default function ConfiguracoesPage() {
   const { 
-    settings, updateSettings, products, categories, movements, invitations, inviteUser, deleteInvitation 
+    settings, updateSettings, products, categories, movements, invitations, users, inviteUser, deleteInvitation, deleteUser 
   } = useApp();
   const { showToast } = useToast();
 
@@ -219,6 +219,67 @@ export default function ConfiguracoesPage() {
             </table>
           </div>
         )}
+      </SectionCard>
+
+      {/* Membros da Equipe */}
+      <SectionCard
+        icon={<Users size={18} color="var(--primary-600)" />}
+        title="Membros da Equipe"
+        subtitle="Usuários ativos com acesso ao sistema"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {users.map((user) => {
+            const { currentUser } = useApp(); // Local access to identify self
+            const isSelf = user.id === currentUser?.id;
+
+            return (
+              <div key={user.id} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '0.75rem 1rem',
+                borderRadius: '8px',
+                border: '1px solid var(--neutral-200)',
+                background: 'white',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{
+                    width: '32px', height: '32px', borderRadius: '50%',
+                    background: 'var(--primary-100)', color: 'var(--primary-700)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontWeight: 700, fontSize: '0.75rem'
+                  }}>
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>
+                      {user.name} {isSelf && <span style={{ color: 'var(--neutral-400)', fontWeight: 400 }}>(você)</span>}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--neutral-500)' }}>{roleLabels[user.role]}</div>
+                  </div>
+                </div>
+                
+                {!isSelf && (
+                  <button 
+                    onClick={async () => {
+                      if (window.confirm(`Tem certeza que deseja remover ${user.name} do sistema? Ele perderá todo o acesso imediatamente.`)) {
+                        const result = await deleteUser(user.id);
+                        if (result.success) {
+                          showToast('success', 'Usuário removido com sucesso.');
+                        } else {
+                          showToast('error', result.error ?? 'Erro ao remover usuário.');
+                        }
+                      }
+                    }}
+                    className="btn-icon"
+                    style={{ color: 'var(--danger-500)', padding: '4px', background: 'none', border: 'none', cursor: 'pointer' }}
+                    title="Remover usuário"
+                  >
+                    <XCircle size={18} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </SectionCard>
 
       {/* Convidar Usuário */}

@@ -43,6 +43,7 @@ interface AppContextValue extends AppState {
   updateUserStatus: (userId: string, status: User['status']) => Promise<void>;
   getProductStock: (productId: string) => number;
   deleteInvitation: (id: string) => Promise<{ success: boolean; error?: string }>;
+  deleteUser: (userId: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -370,6 +371,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return { success: true };
   };
 
+  const deleteUser = async (userId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { userId }
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      // Atualizar estado local tirando o profile
+      set(prev => ({ ...prev, users: prev.users.filter(u => u.id !== userId) }));
+      return { success: true };
+    } catch (err: any) {
+      console.error("Erro ao deletar usuário:", err);
+      return { success: false, error: err.message || 'Erro ao deletar usuário.' };
+    }
+  };
+
   const acceptInvitation = async (token: string, name: string, password: string) => {
     return { success: false, error: 'Ação não implementada no MVP via Auth API.' };
   };
@@ -403,7 +422,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       value={{
         ...state, login, logout, addCategory, updateCategory, deleteCategory, addProduct, updateProduct,
         deleteProduct, addMovement, updateSettings, inviteUser, acceptInvitation, updateUserStatus, getProductStock,
-        deleteInvitation
+        deleteInvitation, deleteUser
       }}
     >
       {children}
