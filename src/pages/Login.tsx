@@ -68,8 +68,8 @@ export default function LoginPage() {
           .upsert({ 
             id: signUpData.user.id, 
             name: name, 
-            role: 'admin'
-            // organization_id: signUpData.user.id // Removido temporariamente para debug
+            role: 'admin',
+            organization_id: signUpData.user.id // Cada usuário é sua própria organização
           });
         
         if (profileError) {
