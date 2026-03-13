@@ -76,6 +76,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const loadAllData = async (userEmail: string) => {
     try {
       console.log('Loading all data for user:', userEmail);
+      
+      // Primeiro, carregar o perfil do usuário logado para obter organizationId
+      const { data: userProfile, error: userProfileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', (await supabase.auth.getUser()).data.user?.id)
+        .single();
+      
+      if (userProfileError || !userProfile) {
+        console.error('Error loading user profile:', userProfileError);
+        set(prev => ({ ...prev, isInitializing: false }));
+        return;
+      }
+      
+      const userOrganizationId = userProfile.organization_id;
+      console.log('User organization ID:', userOrganizationId);
+      
       const [
         { data: profData, error: profError },
         { data: catData, error: catError },
@@ -85,11 +102,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         { data: invData, error: invError },
       ] = await Promise.all([
         supabase.from('profiles').select('*'),
-        supabase.from('categories').select('*'),
-        supabase.from('products').select('*'),
-        supabase.from('movements').select('*'),
-        supabase.from('settings').select('*').limit(1).maybeSingle(),
-        supabase.from('invitations').select('*'),
+        supabase.from('categories').select('*').eq('organization_id', userOrganizationId),
+        supabase.from('products').select('*').eq('organization_id', userOrganizationId),
+        supabase.from('movements').select('*').eq('organization_id', userOrganizationId),
+        supabase.from('settings').select('*').eq('organization_id', userOrganizationId),
+        supabase.from('invitations').select('*').eq('organization_id', userOrganizationId),
       ]);
 
       console.log('Profiles data:', profData, 'Error:', profError);
@@ -115,9 +132,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // Achar o email real do auth current_user
       const { data: { user: authUser } } = await supabase.auth.getUser();
       console.log('Auth user:', authUser);
-      const mappedCurrentUser = authUser && mappedProfiles.find(u => u.id === authUser.id)
-        ? { ...mappedProfiles.find(u => u.id === authUser.id)!, email: authUser.email || userEmail }
-        : null;
+      const mappedCurrentUser = authUser ? {
+        id: userProfile.id,
+        name: userProfile.name,
+        email: authUser.email || userEmail,
+        role: userProfile.role,
+        status: userProfile.status,
+        createdAt: userProfile.created_at,
+        failedLoginAttempts: 0,
+        organizationId: userProfile.organization_id,
+      } : null;
       console.log('Mapped current user:', mappedCurrentUser);
 
       const mappedCategories: Category[] = (catData || []).map((c: any) => ({
