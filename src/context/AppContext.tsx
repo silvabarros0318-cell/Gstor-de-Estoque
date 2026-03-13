@@ -333,7 +333,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       body: { email, role }
     });
 
-    if (error) return { success: false, error: error.message };
+    if (error) {
+      console.error('Edge Function Error:', error);
+      // Tentamos extrair a mensagem de erro que vem no JSON da função
+      let errorMessage = error.message;
+      try {
+        const errJson = await error.context?.json();
+        if (errJson && errJson.error) errorMessage = errJson.error;
+      } catch (e) {
+        // Fallback para a mensagem original
+      }
+      return { success: false, error: errorMessage };
+    }
 
     // Também inserimos na nossa tabela local para rastreamento no dashboard
     await supabase.from('invitations').insert({ email, role });
