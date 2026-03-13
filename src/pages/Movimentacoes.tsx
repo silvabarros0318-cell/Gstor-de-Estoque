@@ -191,12 +191,13 @@ export default function MovimentacoesPage() {
                 <th>Produto</th>
                 <th>Tipo</th>
                 <th>Quantidade</th>
+                <th>Usuário</th>
                 <th>Observação</th>
               </tr>
             </thead>
             <tbody>
               {filteredMovements.length === 0 ? (
-                <tr><td colSpan={5}><div className="empty-state"><div className="empty-state-text">Nenhuma movimentação encontrada</div></div></td></tr>
+                <tr><td colSpan={6}><div className="empty-state"><div className="empty-state-text">Nenhuma movimentação encontrada</div></div></td></tr>
               ) : (
                 filteredMovements.map((m) => (
                   <tr key={m.id}>
@@ -215,6 +216,9 @@ export default function MovimentacoesPage() {
                         {m.type === 'saida' ? '-' : '+'}{m.quantity}
                       </span>
                       {' '}<span style={{ color: 'var(--neutral-400)', fontSize: '0.75rem' }}>{getProductUnit(m.productId)}</span>
+                    </td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--neutral-600)' }}>
+                      {users.find(u => u.id === m.createdBy)?.name || 'Sistema'}
                     </td>
                     <td style={{ color: 'var(--neutral-500)' }}>{m.observation || '—'}</td>
                   </tr>

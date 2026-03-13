@@ -46,22 +46,27 @@ export default function LoginPage() {
       }
       setLoading(true);
       setError('');
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { name }
         }
       });
-      // Try to create profile if needed, or rely on triggers if any
-      setLoading(false);
 
       if (signUpError) {
         setError(signUpError.message);
-      } else {
-        showToast('success', 'Conta criada com sucesso! Faça login para continuar.');
+        setLoading(false);
+      } else if (signUpData.user) {
+        // Garantir que o perfil seja criado como admin
+        await supabase.from('profiles').update({ role: 'admin' }).eq('id', signUpData.user.id);
+        
+        setLoading(false);
+        showToast('success', 'Conta criada como Administrador! Faça login.');
         setView('login');
         setPassword('');
+      } else {
+        setLoading(false);
       }
     } else if (view === 'forgot_password') {
       if (!email) {

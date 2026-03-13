@@ -61,7 +61,7 @@ export default function ProdutosPage() {
   // Product modal
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [productForm, setProductForm] = useState({ name: '', categoryId: '', minStock: '', unit: 'Unid.', description: '' });
+  const [productForm, setProductForm] = useState({ name: '', categoryId: '', minStock: '', unit: 'Unidade', description: '' });
   const [confirmDeleteProduct, setConfirmDeleteProduct] = useState<Product | null>(null);
 
   // Category modal
@@ -83,7 +83,7 @@ export default function ProdutosPage() {
   // Product handlers
   const openNewProduct = () => {
     setEditingProduct(null);
-    setProductForm({ name: '', categoryId: categories[0]?.id ?? '', minStock: '', unit: 'Unid.', description: '' });
+    setProductForm({ name: '', categoryId: categories[0]?.id ?? '', minStock: '', unit: 'Unidade', description: '' });
     setShowProductModal(true);
   };
 
@@ -273,7 +273,15 @@ export default function ProdutosPage() {
             </div>
             <div className="form-group">
               <label className="form-label">Unidade de Medida <span>*</span></label>
-              <input className="form-input" placeholder="Ex: Unid., kg, L" value={productForm.unit} onChange={(e) => setProductForm({ ...productForm, unit: e.target.value })} />
+              <select 
+                className="form-select" 
+                value={productForm.unit} 
+                onChange={(e) => setProductForm({ ...productForm, unit: e.target.value })}
+              >
+                <option value="Unidade">Unidade</option>
+                <option value="Kg">Kg</option>
+                <option value="Litros">Litros</option>
+              </select>
             </div>
           </div>
           <div className="form-group">
