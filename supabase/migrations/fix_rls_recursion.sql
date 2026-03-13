@@ -33,11 +33,8 @@ $$;
 -- Habilitar RLS nas tabelas principais e criar políticas corrigidas
 -- Nota: Políticas temporariamente permissivas para debug, ajuste conforme necessário
 
--- Profiles (reabilitar RLS com política por organização)
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
-CREATE POLICY "Users can view own profile" ON profiles
-FOR ALL USING (id = auth.uid() OR organization_id = get_user_organization_id(auth.uid()));
+-- Profiles (desabilitar RLS pois cada usuário só vê seu próprio perfil via id = auth.uid())
+ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;
 
 -- Categories
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
