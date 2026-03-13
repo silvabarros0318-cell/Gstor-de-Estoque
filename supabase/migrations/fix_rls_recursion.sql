@@ -4,21 +4,29 @@ DELETE FROM products;
 DELETE FROM categories;
 DELETE FROM settings;
 DELETE FROM invitations;
-DELETE FROM profiles WHERE id NOT IN (SELECT auth.uid() FROM auth.users WHERE auth.uid() IS NOT NULL); -- Manter apenas perfis de usuários autenticados
+-- DELETE FROM profiles WHERE id NOT IN (SELECT auth.uid() FROM auth.users WHERE auth.uid() IS NOT NULL); -- Comentado para não deletar perfis
+
+-- Adicionar coluna organization_id nas tabelas que não têm
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS organization_id UUID;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS organization_id UUID;
+ALTER TABLE movements ADD COLUMN IF NOT EXISTS organization_id UUID;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS organization_id UUID;
+ALTER TABLE invitations ADD COLUMN IF NOT EXISTS organization_id UUID;
+
+-- Atualizar organization_id nos perfis existentes (se não tiver, usar o próprio id)
+UPDATE profiles SET organization_id = id WHERE organization_id IS NULL;
 
 -- Função para obter o ID da organização do usuário sem disparar RLS recursivamente
+-- Como cada usuário é sua própria organização, retorna o user_id diretamente
 CREATE OR REPLACE FUNCTION get_user_organization_id(user_id UUID)
 RETURNS UUID
 SECURITY DEFINER
 SET search_path = public
 LANGUAGE plpgsql
 AS $$
-DECLARE
-  org_id UUID;
 BEGIN
-  -- Consulta direta na tabela profiles sem RLS (SECURITY DEFINER ignora RLS)
-  SELECT organization_id INTO org_id FROM profiles WHERE id = user_id;
-  RETURN org_id;
+  -- Retorna o user_id diretamente, assumindo organization_id = user_id
+  RETURN user_id;
 END;
 $$;
 
