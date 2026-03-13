@@ -62,8 +62,22 @@ export default function LoginPage() {
         setError(signUpError.message);
         setLoading(false);
       } else if (signUpData.user) {
-        // Garantir que o perfil seja criado como admin
-        await supabase.from('profiles').update({ role: 'admin' }).eq('id', signUpData.user.id);
+        // Criar ou atualizar o perfil como admin
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({ 
+            id: signUpData.user.id, 
+            name: name, 
+            role: 'admin',
+            organization_id: signUpData.user.id // Temporário: usar próprio ID como org para teste
+          });
+        
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+          setError('Erro ao criar perfil.');
+          setLoading(false);
+          return;
+        }
         
         setLoading(false);
         showToast('success', 'Conta criada como Administrador! Verifique seu e-mail para confirmar.');
