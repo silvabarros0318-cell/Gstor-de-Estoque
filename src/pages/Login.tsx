@@ -65,32 +65,7 @@ export default function LoginPage() {
         setLoading(false);
       } else if (signUpData.user) {
         console.log('SignUp successful, user ID:', signUpData.user.id);
-        if (!signUpData.user.id) {
-          console.error('User ID is null, cannot create profile');
-          setError('Erro: ID do usuário não disponível. Tente fazer login após confirmar o email.');
-          setLoading(false);
-          return;
-        }
-        // Criar ou atualizar o perfil como admin
-        const profileData = { 
-          id: signUpData.user.id, 
-          name: name, 
-          role: 'admin',
-          organization_id: signUpData.user.id // Cada usuário é sua própria organização
-        };
-        console.log('Inserting profile:', profileData);
-        const { data: profileInsertData, error: profileError } = await supabase
-          .from('profiles')
-          .insert(profileData); // Usar insert em vez de upsert para debug
-        
-        console.log('Profile insert result:', { data: profileInsertData, error: profileError });
-        if (profileError) {
-          console.error('Error creating profile:', profileError);
-          setError(`Erro ao criar perfil: ${profileError.message}`);
-          setLoading(false);
-          return;
-        }
-        
+        // O trigger handle_new_user criará a organização, membro e atualizará o profile automaticamente
         setLoading(false);
         showToast('success', 'Conta criada como Administrador! Verifique seu e-mail para confirmar.');
         setView('login');
