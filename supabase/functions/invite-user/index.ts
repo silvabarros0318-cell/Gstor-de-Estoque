@@ -45,7 +45,8 @@ Deno.serve(async (req) => {
 
     // Invite user via Supabase Auth Admin
     const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: { role }
+      data: { role },
+      redirectTo: 'https://gstor-de-estoque.vercel.app/'
     });
 
     if (error) {

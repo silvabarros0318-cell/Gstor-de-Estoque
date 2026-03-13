@@ -38,7 +38,9 @@ function SectionCard({ icon, title, subtitle, children }: {
 }
 
 export default function ConfiguracoesPage() {
-  const { settings, updateSettings, products, categories, movements, invitations, inviteUser } = useApp();
+  const { 
+    settings, updateSettings, products, categories, movements, invitations, inviteUser, deleteInvitation 
+  } = useApp();
   const { showToast } = useToast();
 
   const [whatsapp, setWhatsapp] = useState(settings.alertConfig.whatsappNumber);
@@ -302,9 +304,29 @@ export default function ConfiguracoesPage() {
                       </div>
                     </div>
                     <div>
-                      {inv.used && <span className="badge badge-success"><CheckCircle size={11} /> Aceito</span>}
-                      {isPending && <span className="badge badge-warning"><Clock size={11} /> Pendente</span>}
-                      {isExpired && <span className="badge badge-neutral"><XCircle size={11} /> Expirado</span>}
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {inv.used && <span className="badge badge-success"><CheckCircle size={11} /> Aceito</span>}
+                        {isPending && <span className="badge badge-warning"><Clock size={11} /> Pendente</span>}
+                        {isExpired && <span className="badge badge-neutral"><XCircle size={11} /> Expirado</span>}
+                        
+                        <button 
+                          onClick={async () => {
+                            if (window.confirm(`Excluir convite para ${inv.email}?`)) {
+                              const result = await deleteInvitation(inv.id);
+                              if (result.success) {
+                                showToast('success', 'Convite excluído.');
+                              } else {
+                                showToast('error', 'Erro ao excluir convite.');
+                              }
+                            }
+                          }}
+                          className="btn-icon"
+                          style={{ color: 'var(--danger-500)', padding: '4px', background: 'none', border: 'none', cursor: 'pointer' }}
+                          title="Excluir convite"
+                        >
+                          <XCircle size={16} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );

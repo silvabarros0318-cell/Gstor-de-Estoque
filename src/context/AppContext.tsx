@@ -42,6 +42,7 @@ interface AppContextValue extends AppState {
   acceptInvitation: (token: string, name: string, password: string) => Promise<{ success: boolean; error?: string }>;
   updateUserStatus: (userId: string, status: User['status']) => Promise<void>;
   getProductStock: (productId: string) => number;
+  deleteInvitation: (id: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -362,6 +363,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return { success: true };
   };
 
+  const deleteInvitation = async (id: string) => {
+    const { error } = await supabase.from('invitations').delete().eq('id', id);
+    if (error) return { success: false, error: error.message };
+    set(prev => ({ ...prev, invitations: prev.invitations.filter(i => i.id !== id) }));
+    return { success: true };
+  };
+
   const acceptInvitation = async (token: string, name: string, password: string) => {
     return { success: false, error: 'Ação não implementada no MVP via Auth API.' };
   };
@@ -394,7 +402,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     <AppContext.Provider
       value={{
         ...state, login, logout, addCategory, updateCategory, deleteCategory, addProduct, updateProduct,
-        deleteProduct, addMovement, updateSettings, inviteUser, acceptInvitation, updateUserStatus, getProductStock
+        deleteProduct, addMovement, updateSettings, inviteUser, acceptInvitation, updateUserStatus, getProductStock,
+        deleteInvitation
       }}
     >
       {children}
