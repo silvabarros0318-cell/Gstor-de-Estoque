@@ -223,11 +223,6 @@ export default function LoginPage() {
             )}
           </div>
 
-          <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'var(--neutral-50)', borderRadius: '10px', fontSize: '0.75rem', color: 'var(--neutral-500)' }}>
-            <strong style={{ color: 'var(--neutral-700)' }}>Credenciais de teste:</strong><br />
-            Admin: admin@gmail.com / admin<br />
-            Demo: demo@gmail.com / demo
-          </div>
         </div>
       </div>
     </div>
