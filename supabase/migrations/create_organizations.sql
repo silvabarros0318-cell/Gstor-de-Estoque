@@ -25,42 +25,6 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES or
 -- Desabilitar RLS para profiles (já feito anteriormente)
 ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;
 
--- Função para criar organização e membro no registro
-CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  -- Criar organização
-  INSERT INTO organizations (name, owner_id)
-  VALUES (NEW.raw_user_meta_data->>'name' || '''s Organization', NEW.id);
-
-  -- Criar ou atualizar profile
-  INSERT INTO profiles (id, name, role, organization_id)
-  VALUES (
-    NEW.id,
-    NEW.raw_user_meta_data->>'name',
-    'admin',
-    (SELECT id FROM organizations WHERE owner_id = NEW.id LIMIT 1)
-  )
-  ON CONFLICT (id) DO UPDATE SET
-    name = EXCLUDED.name,
-    role = EXCLUDED.role,
-    organization_id = EXCLUDED.organization_id;
-
-  -- Adicionar membro
-  INSERT INTO organization_members (user_id, organization_id, role)
-  VALUES (NEW.id, (SELECT id FROM organizations WHERE owner_id = NEW.id LIMIT 1), 'admin')
-  ON CONFLICT (user_id, organization_id) DO NOTHING;
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Trigger para executar na criação de usuário
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
-
 -- Desabilitar RLS para organizations temporariamente para permitir criação
 ALTER TABLE organizations DISABLE ROW LEVEL SECURITY;
 
