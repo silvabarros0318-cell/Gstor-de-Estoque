@@ -109,6 +109,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         status: p.status,
         createdAt: p.created_at,
         failedLoginAttempts: 0,
+        organizationId: p.organization_id,
       }));
 
       // Achar o email real do auth current_user
@@ -229,6 +230,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const { data: newCat, error } = await supabase.from('categories').insert({
       name: data.name,
       description: data.description,
+      organization_id: currentUser?.organizationId,
     }).select().single();
     
     if (newCat) {
@@ -265,6 +267,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       min_stock: data.minStock,
       unit: data.unit,
       description: data.description,
+      organization_id: currentUser?.organizationId,
     }).select().single();
 
     if (newProd) {
@@ -313,7 +316,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       type, 
       quantity, 
       observation,
-      created_by: state.currentUser?.id
+      created_by: state.currentUser?.id,
+      organization_id: currentUser?.organizationId
     }).select().single();
 
     if (error) return { success: false, error: error.message };
@@ -335,7 +339,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (data.alertConfig.minIntervalHours !== undefined) updates.min_interval_hours = data.alertConfig.minIntervalHours;
       if (data.alertConfig.lastAlertSent !== undefined) updates.last_alert_sent = data.alertConfig.lastAlertSent;
     }
-    await supabase.from('settings').update(updates).eq('id', '00000000-0000-0000-0000-000000000001');
+    updates.organization_id = currentUser?.organizationId;
+    await supabase.from('settings').upsert(updates).eq('organization_id', currentUser?.organizationId);
     set(prev => ({
       ...prev, settings: { alertConfig: { ...prev.settings.alertConfig, ...(data.alertConfig || {}) } }
     }));

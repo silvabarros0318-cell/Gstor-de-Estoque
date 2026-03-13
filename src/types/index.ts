@@ -13,6 +13,7 @@ export interface User {
   status: 'active' | 'pending' | 'blocked';
   failedLoginAttempts: number;
   blockedUntil?: string;
+  organizationId?: string;
 }
 
 export interface Category {
