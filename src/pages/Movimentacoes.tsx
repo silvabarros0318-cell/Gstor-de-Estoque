@@ -4,10 +4,10 @@ import { useToast } from '../context/ToastContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ArrowUpRight, ArrowDownRight, Search, Filter, Plus } from 'lucide-react';
-import type { MovementType } from '../types';
+import type { MovementType, User } from '../types';
 
 export default function MovimentacoesPage() {
-  const { products, movements, addMovement, currentUser, getProductStock } = useApp();
+  const { products, movements, addMovement, currentUser, getProductStock, users } = useApp();
   const { showToast } = useToast();
 
   const [form, setForm] = useState<{ productId: string; type: MovementType; quantity: string; observation: string }>({
@@ -218,7 +218,7 @@ export default function MovimentacoesPage() {
                       {' '}<span style={{ color: 'var(--neutral-400)', fontSize: '0.75rem' }}>{getProductUnit(m.productId)}</span>
                     </td>
                     <td style={{ fontSize: '0.8125rem', color: 'var(--neutral-600)' }}>
-                      {users.find(u => u.id === m.createdBy)?.name || 'Sistema'}
+                      {users.find((u: User) => u.id === m.createdBy)?.name || 'Sistema'}
                     </td>
                     <td style={{ color: 'var(--neutral-500)' }}>{m.observation || '—'}</td>
                   </tr>
