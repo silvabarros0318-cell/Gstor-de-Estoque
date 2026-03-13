@@ -1,3 +1,11 @@
+-- Limpar dados de demonstração para novas contas começarem vazias
+DELETE FROM movements;
+DELETE FROM products;
+DELETE FROM categories;
+DELETE FROM settings;
+DELETE FROM invitations;
+DELETE FROM profiles WHERE id NOT IN (SELECT auth.uid() FROM auth.users WHERE auth.uid() IS NOT NULL); -- Manter apenas perfis de usuários autenticados
+
 -- Função para obter o ID da organização do usuário sem disparar RLS recursivamente
 CREATE OR REPLACE FUNCTION get_user_organization_id(user_id UUID)
 RETURNS UUID
