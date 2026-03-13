@@ -65,7 +65,54 @@ export default function LoginPage() {
         setLoading(false);
       } else if (signUpData.user) {
         console.log('SignUp successful, user ID:', signUpData.user.id);
-        // O trigger handle_new_user criará a organização, membro e atualizará o profile automaticamente
+        // Criar organização
+        const { data: orgData, error: orgError } = await supabase
+          .from('organizations')
+          .insert({ name: name + '''s Organization', owner_id: signUpData.user.id })
+          .select('id')
+          .single();
+        
+        if (orgError) {
+          console.error('Error creating organization:', orgError);
+          setError(`Erro ao criar organização: ${orgError.message}`);
+          setLoading(false);
+          return;
+        }
+
+        // Criar perfil
+        const profileData = { 
+          id: signUpData.user.id, 
+          name: name, 
+          role: 'admin',
+          organization_id: orgData.id
+        };
+        console.log('Inserting profile:', profileData);
+        const { data: profileInsertData, error: profileError } = await supabase
+          .from('profiles')
+          .insert(profileData);
+        
+        console.log('Profile insert result:', { data: profileInsertData, error: profileError });
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+          setError(`Erro ao criar perfil: ${profileError.message}`);
+          setLoading(false);
+          return;
+        }
+
+        // Criar membro
+        const { error: memberError } = await supabase
+          .from('organization_members')
+          .insert({
+            user_id: signUpData.user.id,
+            organization_id: orgData.id,
+            role: 'admin'
+          });
+        
+        if (memberError) {
+          console.error('Error creating member:', memberError);
+          // Não bloquear se falhar, pois perfil já foi criado
+        }
+        
         setLoading(false);
         showToast('success', 'Conta criada como Administrador! Verifique seu e-mail para confirmar.');
         setView('login');
