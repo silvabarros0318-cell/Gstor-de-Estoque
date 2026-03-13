@@ -30,13 +30,23 @@ BEGIN
   INSERT INTO organizations (name, owner_id)
   VALUES (NEW.raw_user_meta_data->>'name' || '''s Organization', NEW.id);
 
+  -- Criar ou atualizar profile
+  INSERT INTO profiles (id, name, role, organization_id)
+  VALUES (
+    NEW.id,
+    NEW.raw_user_meta_data->>'name',
+    'admin',
+    (SELECT id FROM organizations WHERE owner_id = NEW.id LIMIT 1)
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    role = EXCLUDED.role,
+    organization_id = EXCLUDED.organization_id;
+
   -- Adicionar membro
   INSERT INTO organization_members (user_id, organization_id, role)
-  VALUES (NEW.id, (SELECT id FROM organizations WHERE owner_id = NEW.id LIMIT 1), 'admin');
-
-  -- Atualizar profile
-  UPDATE profiles SET organization_id = (SELECT id FROM organizations WHERE owner_id = NEW.id LIMIT 1)
-  WHERE id = NEW.id;
+  VALUES (NEW.id, (SELECT id FROM organizations WHERE owner_id = NEW.id LIMIT 1), 'admin')
+  ON CONFLICT (user_id, organization_id) DO NOTHING;
 
   RETURN NEW;
 END;
