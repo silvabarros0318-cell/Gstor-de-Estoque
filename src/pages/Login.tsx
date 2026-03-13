@@ -64,14 +64,23 @@ export default function LoginPage() {
         setError(signUpError.message);
         setLoading(false);
       } else if (signUpData.user) {
-        console.log('SignUp successful, user ID:', signUpData.user.id);
+        console.log('SignUp successful, user:', signUpData.user);
+        console.log('User ID:', signUpData.user.id);
+        if (!signUpData.user.id) {
+          console.error('User ID is null, cannot create profile');
+          setError('Erro: ID do usuário não disponível. Tente fazer login após confirmar o email.');
+          setLoading(false);
+          return;
+        }
         // Criar organização
+        console.log('Creating organization for user:', signUpData.user.id);
         const { data: orgData, error: orgError } = await supabase
           .from('organizations')
-          .insert({ name: name + '''s Organization', owner_id: signUpData.user.id })
+          .insert({ name: name + "'s Organization", owner_id: signUpData.user.id })
           .select('id')
           .single();
         
+        console.log('Organization insert result:', { data: orgData, error: orgError });
         if (orgError) {
           console.error('Error creating organization:', orgError);
           setError(`Erro ao criar organização: ${orgError.message}`);
