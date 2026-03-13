@@ -75,13 +75,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const loadAllData = async (userEmail: string) => {
     try {
+      console.log('Loading all data for user:', userEmail);
       const [
-        { data: profData },
-        { data: catData },
-        { data: prodData },
-        { data: movData },
-        { data: setData },
-        { data: invData },
+        { data: profData, error: profError },
+        { data: catData, error: catError },
+        { data: prodData, error: prodError },
+        { data: movData, error: movError },
+        { data: setData, error: setError },
+        { data: invData, error: invError },
       ] = await Promise.all([
         supabase.from('profiles').select('*'),
         supabase.from('categories').select('*'),
@@ -90,6 +91,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         supabase.from('settings').select('*').limit(1).maybeSingle(),
         supabase.from('invitations').select('*'),
       ]);
+
+      console.log('Profiles data:', profData, 'Error:', profError);
+      console.log('Categories data:', catData, 'Error:', catError);
+      console.log('Products data:', prodData, 'Error:', prodError);
+      console.log('Movements data:', movData, 'Error:', movError);
+      console.log('Settings data:', setData, 'Error:', setError);
+      console.log('Invitations data:', invData, 'Error:', invError);
 
       const me = profData?.find(p => p.id === (supabase.auth.getSession().then(s => s.data.session?.user.id)));
       
@@ -105,9 +113,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       // Achar o email real do auth current_user
       const { data: { user: authUser } } = await supabase.auth.getUser();
+      console.log('Auth user:', authUser);
       const mappedCurrentUser = authUser && mappedProfiles.find(u => u.id === authUser.id)
         ? { ...mappedProfiles.find(u => u.id === authUser.id)!, email: authUser.email || userEmail }
         : null;
+      console.log('Mapped current user:', mappedCurrentUser);
 
       const mappedCategories: Category[] = (catData || []).map((c: any) => ({
         id: c.id,
@@ -171,6 +181,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         invitations: mappedInvitations,
         isInitializing: false,
       }));
+
+      console.log('Data loaded successfully, currentUser:', mappedCurrentUser);
 
     } catch (e) {
       console.error('Error loading data:', e);
