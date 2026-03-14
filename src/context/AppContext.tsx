@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type {
   Category,
@@ -12,8 +13,9 @@ import type {
 } from '../types';
 
 interface AppState {
-  isInitializing: boolean;
+  loading: boolean;
   currentUser: User | null;
+  session: Session | null;
   users: User[];
   categories: Category[];
   products: Product[];
@@ -59,8 +61,9 @@ const DEFAULT_SETTINGS: Settings = {
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AppState>({
-    isInitializing: true,
+    loading: true,
     currentUser: null,
+    session: null,
     users: [],
     categories: [],
     products: [],
@@ -73,10 +76,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setState((prev) => updater(prev));
   };
 
-  const loadAllData = async (userEmail: string) => {
+  const loadAllData = async (session: Session) => {
     try {
-      set(prev => ({ ...prev, isInitializing: true }));
-      console.log('Loading all data for user:', userEmail);
+      set(prev => ({ ...prev, loading: true, session }));
+      console.log('Loading all data for session:', session.user.email);
       
       // Primeiro, carregar o perfil do usuário logado para obter organizationId
       const { data: userProfile, error: userProfileError } = await supabase
@@ -87,7 +90,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       
       if (userProfileError || !userProfile) {
         console.error('Error loading user profile:', userProfileError);
-        set(prev => ({ ...prev, isInitializing: false }));
+        set(prev => ({ ...prev, loading: false }));
         return;
       }
       
@@ -124,7 +127,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const mappedProfiles: User[] = (profData || []).map((p: any) => ({
         id: p.id,
         name: p.name,
-        email: p.id === authUser?.id ? userEmail : (p.email || `user-${p.id.substring(0,4)}@mail.com`),
+        email: p.id === session.user.id ? session.user.email : (p.email || `user-${p.id.substring(0,4)}@mail.com`),
         role: p.role,
         status: p.status,
         createdAt: p.created_at,
@@ -132,16 +135,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         organizationId: p.organization_id,
       }));
 
-      const mappedCurrentUser = authUser ? {
+      const mappedCurrentUser: User = {
         id: userProfile.id,
         name: userProfile.name,
-        email: authUser.email || userEmail,
+        email: session.user.email || '',
         role: userProfile.role,
         status: userProfile.status,
         createdAt: userProfile.created_at,
         failedLoginAttempts: 0,
         organizationId: userProfile.organization_id,
-      } : null;
+      };
       
       if (!mappedCurrentUser) {
         console.warn('No mapped current user, initialization might be incomplete');
@@ -210,7 +213,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         movements: mappedMovements,
         settings: mappedSettings,
         invitations: mappedInvitations,
-        isInitializing: false,
+        loading: false,
       }));
 
       console.log('Data loaded successfully');
@@ -218,28 +221,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.error('Error in loadAllData:', e);
     } finally {
-      set(prev => ({ ...prev, isInitializing: false }));
+      set(prev => ({ ...prev, loading: false }));
     }
   };
 
   useEffect(() => {
     const initAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        loadAllData(session.user.email || '');
+      if (session) {
+        await loadAllData(session);
       } else {
-        set(prev => ({ ...prev, isInitializing: false }));
+        set(prev => ({ ...prev, loading: false }));
       }
     };
     initAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        loadAllData(session.user.email || '');
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session) {
+        await loadAllData(session);
       } else {
         set(prev => ({
-          ...prev, currentUser: null, isInitializing: false,
-          categories: [], products: [], movements: [], invitations: [], users: []
+          ...prev, 
+          currentUser: null, 
+          session: null,
+          loading: false,
+          categories: [], 
+          products: [], 
+          movements: [], 
+          invitations: [], 
+          users: []
         }));
       }
     });
@@ -248,8 +258,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { success: false, error: error.message };
+    if (data.session) {
+      await loadAllData(data.session);
+    }
     return { success: true };
   };
 
@@ -463,17 +476,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .filter((m) => m.productId === productId)
       .reduce((acc, curr) => (curr.type === 'entrada' ? acc + curr.quantity : acc - curr.quantity), 0);
   };
-
-  if (state.isInitializing) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
-        <div style={{ textAlign: 'center' }}>
-          <span className="spinner" style={{ width: '40px', height: '40px', borderWidth: '4px', borderColor: 'var(--primary-600) transparent var(--primary-600) transparent', marginBottom: '1rem' }} />
-          <h2 style={{ color: 'var(--neutral-800)', fontFamily: 'Inter', fontWeight: 600 }}>Carregando sistema...</h2>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <AppContext.Provider

@@ -9,48 +9,66 @@ import Movimentacoes from './pages/Movimentacoes';
 import Estoque from './pages/Estoque';
 import Configuracoes from './pages/Configuracoes';
 
+function LoadingScreen() {
+  return (
+    <div style={{ 
+      minHeight: '100vh', 
+      display: 'flex', 
+      flexDirection: 'column',
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      background: 'linear-gradient(135deg, #0f1a52 0%, #090e27 100%)',
+      fontFamily: 'Inter, sans-serif',
+      color: 'white'
+    }}>
+      <div className="spinner" style={{ 
+        width: '40px', 
+        height: '40px', 
+        border: '3px solid rgba(255,255,255,0.1)', 
+        borderTopColor: '#4a70d8', 
+        borderRadius: '50%', 
+        animation: 'spin 1s linear infinite', 
+        marginBottom: '1rem' 
+      }} />
+      <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.05em' }}>CARREGANDO...</p>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
+    </div>
+  );
+}
+
 function PrivateRoute({ element, adminOnly = false, operatorOrAdmin = false }: {
   element: React.ReactNode;
   adminOnly?: boolean;
   operatorOrAdmin?: boolean;
 }) {
-  const { currentUser } = useApp();
-  if (!currentUser) return <Navigate to="/login" replace />;
-  if (adminOnly && currentUser.role !== 'admin') return <Navigate to="/dashboard" replace />;
-  if (operatorOrAdmin && currentUser.role === 'viewer') return <Navigate to="/dashboard" replace />;
+  const { currentUser, loading } = useApp();
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  if (!currentUser) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (adminOnly && currentUser.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  if (operatorOrAdmin && currentUser.role === 'viewer') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return <>{element}</>;
 }
 
 function AppRoutes() {
-  const { currentUser, isInitializing } = useApp();
+  const { currentUser, loading } = useApp();
 
-  if (isInitializing) {
-    return (
-      <div style={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        flexDirection: 'column',
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        background: 'linear-gradient(135deg, #0f1a52 0%, #090e27 100%)',
-        fontFamily: 'Inter, sans-serif',
-        color: 'white'
-      }}>
-        <div className="spinner" style={{ 
-          width: '40px', 
-          height: '40px', 
-          border: '3px solid rgba(255,255,255,0.1)', 
-          borderTopColor: '#4a70d8', 
-          borderRadius: '50%', 
-          animation: 'spin 1s linear infinite', 
-          marginBottom: '1rem' 
-        }} />
-        <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.05em' }}>CARREGANDO...</p>
-        <style>{`
-          @keyframes spin { to { transform: rotate(360deg); } }
-        `}</style>
-      </div>
-    );
+  if (loading) {
+    return <LoadingScreen />;
   }
 
   return (
