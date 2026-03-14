@@ -335,12 +335,12 @@ export default function ConfiguracoesPage() {
           </button>
 
           {/* Convites pendentes */}
-          {invitations.length > 0 && (
+          {pendingInvitations.length > 0 && (
             <div style={{ marginTop: '1rem' }}>
               <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--neutral-700)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Users size={16} /> Convites ({invitations.length})
+                <Users size={16} /> Convites Pendentes ({pendingInvitations.length})
               </div>
-              {invitations.map((inv) => {
+              {pendingInvitations.map((inv) => {
                 const isPending = !inv.used && new Date(inv.expiresAt) > new Date();
                 const isExpired = !inv.used && new Date(inv.expiresAt) <= new Date();
                 return (
