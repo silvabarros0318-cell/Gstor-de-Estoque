@@ -116,12 +116,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       console.log('Settings data:', setData, 'Error:', setError);
       console.log('Invitations data:', invData, 'Error:', invError);
 
-      const me = profData?.find(p => p.id === (supabase.auth.getSession().then(s => s.data.session?.user.id)));
+      // Encontrar o perfil do próprio usuáriologado
+      const authUser = (await supabase.auth.getUser()).data.user;
+      const me = profData?.find(p => p.id === authUser?.id);
       
       const mappedProfiles: User[] = (profData || []).map((p: any) => ({
         id: p.id,
         name: p.name,
-        email: p.id === me?.id ? userEmail : `user-${p.id.substring(0,4)}@mail.com`, // We don't have access to auth.users email easily except for ourselves
+        email: p.id === authUser?.id ? userEmail : (p.email || `user-${p.id.substring(0,4)}@mail.com`),
         role: p.role,
         status: p.status,
         createdAt: p.created_at,
@@ -129,9 +131,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         organizationId: p.organization_id,
       }));
 
-      // Achar o email real do auth current_user
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      console.log('Auth user:', authUser);
       const mappedCurrentUser = authUser ? {
         id: userProfile.id,
         name: userProfile.name,
@@ -142,6 +141,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         failedLoginAttempts: 0,
         organizationId: userProfile.organization_id,
       } : null;
+      
       console.log('Mapped current user:', mappedCurrentUser);
 
       const mappedCategories: Category[] = (catData || []).map((c: any) => ({
@@ -165,7 +165,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const mappedMovements: Movement[] = (movData || []).map((m: any) => ({
         id: m.id,
         productId: m.product_id,
-        type: m.type,
+        type: m.type as any,
         quantity: m.quantity,
         observation: m.observation,
         createdAt: m.created_at,
@@ -177,9 +177,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const settings = setData[0];
         mappedSettings = {
           alertConfig: {
-            enabled: settings.alert_enabled,
+            enabled: !!settings.alert_enabled,
             whatsappNumber: settings.whatsapp_number || '',
-            minIntervalHours: settings.min_interval_hours,
+            minIntervalHours: Number(settings.min_interval_hours) || 24,
             lastAlertSent: settings.last_alert_sent || ''
           }
         };
@@ -188,12 +188,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const mappedInvitations: Invitation[] = (invData || []).map((i: any) => ({
         id: i.id,
         email: i.email,
-        role: i.role,
+        role: i.role as any,
         token: i.token,
         invitedBy: i.invited_by,
         createdAt: i.created_at,
         expiresAt: i.expires_at,
-        used: i.used,
+        used: !!i.used,
       }));
 
       set(prev => ({
@@ -208,10 +208,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         isInitializing: false,
       }));
 
-      console.log('Data loaded successfully, currentUser:', mappedCurrentUser);
+      console.log('Data loaded successfully');
 
     } catch (e) {
-      console.error('Error loading data:', e);
+      console.error('Error in loadAllData:', e);
+    } finally {
       set(prev => ({ ...prev, isInitializing: false }));
     }
   };

@@ -64,7 +64,6 @@ export default function LoginPage() {
         setError(signUpError.message);
         setLoading(false);
       } else if (signUpData.user) {
-      } else if (signUpData.user) {
         setLoading(false);
         showToast('success', 'Conta criada como Administrador! Verifique seu e-mail para confirmar.');
         setView('login');
