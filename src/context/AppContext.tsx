@@ -373,7 +373,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const inviteUser = async (email: string, role: UserRole) => {
     // Chamando a Edge Function para enviar o e-mail oficial
     const { data, error } = await supabase.functions.invoke('invite-user', {
-      body: { email, role }
+      body: { 
+        email, 
+        role, 
+        organizationId: state.currentUser?.organizationId 
+      }
     });
 
     if (error) {
@@ -392,12 +396,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Também inserimos na nossa tabela local para rastreamento no dashboard
     await supabase.from('invitations').insert({ 
       email, 
-      role,
-      organization_id: currentUser?.organizationId
+      role, 
+      organization_id: state.currentUser?.organizationId 
     });
 
-    // Recarregar convites
-    const { data: invData } = await supabase.from('invitations').select('*');
+    // Recarregar convites da organização
+    const { data: invData } = await supabase.from('invitations')
+      .select('*')
+      .eq('organization_id', state.currentUser?.organizationId);
     if (invData) {
       set(prev => ({
         ...prev, invitations: invData.map((i: any) => ({

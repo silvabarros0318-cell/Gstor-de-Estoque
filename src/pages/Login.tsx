@@ -64,64 +64,7 @@ export default function LoginPage() {
         setError(signUpError.message);
         setLoading(false);
       } else if (signUpData.user) {
-        console.log('SignUp successful, user:', signUpData.user);
-        console.log('User ID:', signUpData.user.id);
-        if (!signUpData.user.id) {
-          console.error('User ID is null, cannot create profile');
-          setError('Erro: ID do usuário não disponível. Tente fazer login após confirmar o email.');
-          setLoading(false);
-          return;
-        }
-        // Criar organização
-        console.log('Creating organization for user:', signUpData.user.id);
-        const { data: orgData, error: orgError } = await supabase
-          .from('organizations')
-          .insert({ name: name + "'s Organization", owner_id: signUpData.user.id })
-          .select('id')
-          .single();
-        
-        console.log('Organization insert result:', { data: orgData, error: orgError });
-        if (orgError) {
-          console.error('Error creating organization:', orgError);
-          setError(`Erro ao criar organização: ${orgError.message}`);
-          setLoading(false);
-          return;
-        }
-
-        // Criar perfil
-        const profileData = { 
-          id: signUpData.user.id, 
-          name: name, 
-          role: 'admin',
-          organization_id: orgData.id
-        };
-        console.log('Inserting profile:', profileData);
-        const { data: profileInsertData, error: profileError } = await supabase
-          .from('profiles')
-          .insert(profileData);
-        
-        console.log('Profile insert result:', { data: profileInsertData, error: profileError });
-        if (profileError) {
-          console.error('Error creating profile:', profileError);
-          setError(`Erro ao criar perfil: ${profileError.message}`);
-          setLoading(false);
-          return;
-        }
-
-        // Criar membro
-        const { error: memberError } = await supabase
-          .from('organization_members')
-          .insert({
-            user_id: signUpData.user.id,
-            organization_id: orgData.id,
-            role: 'admin'
-          });
-        
-        if (memberError) {
-          console.error('Error creating member:', memberError);
-          // Não bloquear se falhar, pois perfil já foi criado
-        }
-        
+      } else if (signUpData.user) {
         setLoading(false);
         showToast('success', 'Conta criada como Administrador! Verifique seu e-mail para confirmar.');
         setView('login');
