@@ -79,13 +79,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const loadAllData = async (session: Session) => {
     try {
       set(prev => ({ ...prev, loading: true, session }));
-      console.log('Loading all data for session:', session.user.email);
+      const userId = session.user.id;
+      console.log('Loading all data for user:', userId);
       
-      // Primeiro, carregar o perfil do usuário logado para obter organizationId
       const { data: userProfile, error: userProfileError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', (await supabase.auth.getUser()).data.user?.id)
+        .eq('id', userId)
         .single();
       
       if (userProfileError || !userProfile) {
@@ -120,8 +120,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       console.log('Settings data:', setData, 'Error:', setError);
       console.log('Invitations data:', invData, 'Error:', invError);
 
-      // Encontrar o perfil do próprio usuáriologado
-      const authUser = (await supabase.auth.getUser()).data.user;
+      // Encontrar o perfil do próprio usuário logado
+      const authUser = session.user;
       const me = profData?.find(p => p.id === authUser?.id);
       
       const mappedProfiles: User[] = (profData || []).map((p: any) => ({
@@ -258,12 +258,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return { success: false, error: error.message };
-    if (data.session) {
-      await loadAllData(data.session);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return { success: false, error: error.message };
+      
+      if (data.session) {
+        // Garantir que carregamos os dados antes de retornar
+        await loadAllData(data.session);
+        return { success: true };
+      }
+      
+      return { success: false, error: 'Sessão não iniciada.' };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Erro ao realizar login.' };
     }
-    return { success: true };
   };
 
   const logout = async () => {

@@ -31,12 +31,12 @@ export default function LoginPage() {
       setLoading(true);
       setError('');
       const result = await login(email, password);
-      setLoading(false);
-
       if (result.success) {
         showToast('success', 'Login realizado com sucesso!');
-        navigate('/dashboard');
+        // Redirecionar imediatamente
+        navigate('/dashboard', { replace: true });
       } else {
+        setLoading(false);
         setError(result.error ?? 'Erro ao realizar login.');
       }
     } else if (view === 'register') {
