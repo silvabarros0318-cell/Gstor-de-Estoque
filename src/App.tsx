@@ -11,48 +11,59 @@ import Configuracoes from './pages/Configuracoes';
 
 function LoadingScreen() {
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
       flexDirection: 'column',
-      alignItems: 'center', 
-      justifyContent: 'center', 
+      alignItems: 'center',
+      justifyContent: 'center',
       background: 'linear-gradient(135deg, #0f1a52 0%, #090e27 100%)',
       fontFamily: 'Inter, sans-serif',
       color: 'white'
     }}>
-      <div className="spinner" style={{ 
-        width: '40px', 
-        height: '40px', 
-        border: '3px solid rgba(255,255,255,0.1)', 
-        borderTopColor: '#4a70d8', 
-        borderRadius: '50%', 
-        animation: 'spin 1s linear infinite', 
-        marginBottom: '1rem' 
+      <div style={{
+        width: '44px',
+        height: '44px',
+        border: '3px solid rgba(255,255,255,0.1)',
+        borderTopColor: '#4a70d8',
+        borderRadius: '50%',
+        animation: 'spin 0.8s linear infinite',
+        marginBottom: '1.25rem'
       }} />
-      <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.05em' }}>CARREGANDO...</p>
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
+      <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', letterSpacing: '0.08em' }}>
+        CARREGANDO...
+      </p>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
 
-function PrivateRoute({ element, adminOnly = false, operatorOrAdmin = false }: {
+/**
+ * Rota protegida — redireciona para /login se não autenticado.
+ * Aguarda sessionLoading antes de tomar qualquer decisão.
+ */
+function PrivateRoute({
+  element,
+  adminOnly = false,
+  operatorOrAdmin = false,
+}: {
   element: React.ReactNode;
   adminOnly?: boolean;
   operatorOrAdmin?: boolean;
 }) {
-  const { currentUser, loading } = useApp();
+  const { currentUser, sessionLoading, loading } = useApp();
 
-  if (loading) {
+  // Aguardar: verificação de sessão OU carregamento de dados
+  if (sessionLoading || loading) {
     return <LoadingScreen />;
   }
 
+  // Sem usuário logado → redireciona para login
   if (!currentUser) {
     return <Navigate to="/login" replace />;
   }
 
+  // Permissão insuficiente
   if (adminOnly && currentUser.role !== 'admin') {
     return <Navigate to="/dashboard" replace />;
   }
@@ -64,25 +75,58 @@ function PrivateRoute({ element, adminOnly = false, operatorOrAdmin = false }: {
   return <>{element}</>;
 }
 
+/**
+ * Rotas principais do app.
+ * Aguarda sessionLoading antes de qualquer decisão de rota.
+ */
 function AppRoutes() {
-  const { currentUser, loading } = useApp();
+  const { currentUser, sessionLoading, loading } = useApp();
 
-  if (loading) {
+  // Enquanto verifica sessão inicial, mostrar loading
+  if (sessionLoading) {
     return <LoadingScreen />;
   }
 
   return (
     <Routes>
-      <Route path="/login" element={currentUser ? <Navigate to="/dashboard" replace /> : <Login />} />
+      {/* Rota de login: se já autenticado, redireciona para dashboard */}
+      <Route
+        path="/login"
+        element={
+          currentUser && !loading
+            ? <Navigate to="/dashboard" replace />
+            : <Login />
+        }
+      />
+
+      {/* Rotas protegidas dentro do DashboardLayout */}
       <Route path="/" element={<PrivateRoute element={<DashboardLayout />} />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
-        <Route path="produtos" element={<PrivateRoute element={<Produtos />} adminOnly />} />
-        <Route path="movimentacoes" element={<PrivateRoute element={<Movimentacoes />} operatorOrAdmin />} />
         <Route path="estoque" element={<Estoque />} />
-        <Route path="configuracoes" element={<PrivateRoute element={<Configuracoes />} adminOnly />} />
+        <Route
+          path="produtos"
+          element={<PrivateRoute element={<Produtos />} adminOnly />}
+        />
+        <Route
+          path="movimentacoes"
+          element={<PrivateRoute element={<Movimentacoes />} operatorOrAdmin />}
+        />
+        <Route
+          path="configuracoes"
+          element={<PrivateRoute element={<Configuracoes />} adminOnly />}
+        />
       </Route>
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+
+      {/* Qualquer rota desconhecida → dashboard (ou login se não autenticado) */}
+      <Route
+        path="*"
+        element={
+          currentUser
+            ? <Navigate to="/dashboard" replace />
+            : <Navigate to="/login" replace />
+        }
+      />
     </Routes>
   );
 }

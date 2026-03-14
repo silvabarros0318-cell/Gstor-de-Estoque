@@ -13,7 +13,8 @@ import type {
 } from '../types';
 
 interface AppState {
-  loading: boolean;
+  sessionLoading: boolean; // aguardando verificação inicial de sessão
+  loading: boolean;        // aguardando carregamento dos dados do usuário
   currentUser: User | null;
   session: Session | null;
   users: User[];
@@ -59,82 +60,66 @@ const DEFAULT_SETTINGS: Settings = {
   }
 };
 
+const INITIAL_STATE: AppState = {
+  sessionLoading: true,
+  loading: false,
+  currentUser: null,
+  session: null,
+  users: [],
+  categories: [],
+  products: [],
+  movements: [],
+  settings: DEFAULT_SETTINGS,
+  invitations: [],
+};
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<AppState>({
-    loading: true,
-    currentUser: null,
-    session: null,
-    users: [],
-    categories: [],
-    products: [],
-    movements: [],
-    settings: DEFAULT_SETTINGS,
-    invitations: [],
-  });
+  const [state, setState] = useState<AppState>(INITIAL_STATE);
 
   const set = (updater: (prev: AppState) => AppState) => {
     setState((prev) => updater(prev));
   };
 
   const loadAllData = async (session: Session) => {
+    const userId = session.user.id;
     try {
       set(prev => ({ ...prev, loading: true, session }));
-      const userId = session.user.id;
-      console.log('Loading all data for user:', userId);
-      
-      const { data: userProfile, error: userProfileError } = await supabase
+      console.log('[Auth] Carregando dados para:', session.user.email);
+
+      // Carregar perfil do usuário logado
+      const { data: userProfile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
-      
-      if (userProfileError || !userProfile) {
-        console.error('Error loading user profile:', userProfileError);
-        set(prev => ({ ...prev, loading: false }));
+
+      if (profileError || !userProfile) {
+        console.error('[Auth] Erro ao carregar perfil:', profileError?.message);
+        set(prev => ({ ...prev, loading: false, sessionLoading: false }));
         return;
       }
-      
-      const userOrganizationId = userProfile.organization_id;
-      console.log('User organization ID:', userOrganizationId);
-      
+
+      const orgId = userProfile.organization_id;
+      console.log('[Auth] Organization ID:', orgId);
+
+      // Carregar todos os dados da organização em paralelo
       const [
-        { data: profData, error: profError },
-        { data: catData, error: catError },
-        { data: prodData, error: prodError },
-        { data: movData, error: movError },
-        { data: setData, error: setError },
-        { data: invData, error: invError },
+        { data: profData },
+        { data: catData },
+        { data: prodData },
+        { data: movData },
+        { data: setData },
+        { data: invData },
       ] = await Promise.all([
-        supabase.from('profiles').select('*').eq('organization_id', userOrganizationId),
-        supabase.from('categories').select('*').eq('organization_id', userOrganizationId),
-        supabase.from('products').select('*').eq('organization_id', userOrganizationId),
-        supabase.from('movements').select('*').eq('organization_id', userOrganizationId),
-        supabase.from('settings').select('*').eq('organization_id', userOrganizationId),
-        supabase.from('invitations').select('*').eq('organization_id', userOrganizationId),
+        supabase.from('profiles').select('*').eq('organization_id', orgId),
+        supabase.from('categories').select('*').eq('organization_id', orgId),
+        supabase.from('products').select('*').eq('organization_id', orgId),
+        supabase.from('movements').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
+        supabase.from('settings').select('*').eq('organization_id', orgId).single(),
+        supabase.from('invitations').select('*').eq('organization_id', orgId),
       ]);
 
-      console.log('Profiles data:', profData, 'Error:', profError);
-      console.log('Categories data:', catData, 'Error:', catError);
-      console.log('Products data:', prodData, 'Error:', prodError);
-      console.log('Movements data:', movData, 'Error:', movError);
-      console.log('Settings data:', setData, 'Error:', setError);
-      console.log('Invitations data:', invData, 'Error:', invError);
-
-      // Encontrar o perfil do próprio usuário logado
-      const authUser = session.user;
-      const me = profData?.find(p => p.id === authUser?.id);
-      
-      const mappedProfiles: User[] = (profData || []).map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        email: p.id === session.user.id ? session.user.email : (p.email || `user-${p.id.substring(0,4)}@mail.com`),
-        role: p.role,
-        status: p.status,
-        createdAt: p.created_at,
-        failedLoginAttempts: 0,
-        organizationId: p.organization_id,
-      }));
-
+      // Mapear current user
       const mappedCurrentUser: User = {
         id: userProfile.id,
         name: userProfile.name,
@@ -145,12 +130,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         failedLoginAttempts: 0,
         organizationId: userProfile.organization_id,
       };
-      
-      if (!mappedCurrentUser) {
-        console.warn('No mapped current user, initialization might be incomplete');
-      }
-      
-      console.log('Mapped current user:', mappedCurrentUser);
+
+      // Mapear todos os profiles da organização
+      const mappedUsers: User[] = (profData || []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        email: p.id === userId ? session.user.email || '' : `user@${p.id.substring(0, 4)}.com`,
+        role: p.role,
+        status: p.status,
+        createdAt: p.created_at,
+        failedLoginAttempts: 0,
+        organizationId: p.organization_id,
+      }));
 
       const mappedCategories: Category[] = (catData || []).map((c: any) => ({
         id: c.id,
@@ -173,7 +164,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const mappedMovements: Movement[] = (movData || []).map((m: any) => ({
         id: m.id,
         productId: m.product_id,
-        type: m.type as any,
+        type: m.type as MovementType,
         quantity: m.quantity,
         observation: m.observation,
         createdAt: m.created_at,
@@ -181,14 +172,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }));
 
       let mappedSettings = DEFAULT_SETTINGS;
-      if (setData && setData.length > 0) {
-        const settings = setData[0];
+      if (setData) {
         mappedSettings = {
           alertConfig: {
-            enabled: !!settings.alert_enabled,
-            whatsappNumber: settings.whatsapp_number || '',
-            minIntervalHours: Number(settings.min_interval_hours) || 24,
-            lastAlertSent: settings.last_alert_sent || ''
+            enabled: !!setData.alert_enabled,
+            whatsappNumber: setData.whatsapp_number || '',
+            minIntervalHours: Number(setData.min_interval_hours) || 24,
+            lastAlertSent: setData.last_alert_sent || '',
           }
         };
       }
@@ -196,7 +186,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const mappedInvitations: Invitation[] = (invData || []).map((i: any) => ({
         id: i.id,
         email: i.email,
-        role: i.role as any,
+        role: i.role as UserRole,
         token: i.token,
         invitedBy: i.invited_by,
         createdAt: i.created_at,
@@ -206,85 +196,106 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       set(prev => ({
         ...prev,
+        sessionLoading: false,
+        loading: false,
         currentUser: mappedCurrentUser,
-        users: mappedProfiles,
+        users: mappedUsers,
         categories: mappedCategories,
         products: mappedProducts,
         movements: mappedMovements,
         settings: mappedSettings,
         invitations: mappedInvitations,
-        loading: false,
       }));
 
-      console.log('Data loaded successfully');
-
+      console.log('[Auth] Dados carregados com sucesso!');
     } catch (e) {
-      console.error('Error in loadAllData:', e);
-    } finally {
-      set(prev => ({ ...prev, loading: false }));
+      console.error('[Auth] Erro em loadAllData:', e);
+      set(prev => ({ ...prev, sessionLoading: false, loading: false }));
     }
   };
 
   useEffect(() => {
+    // Verificar sessão existente ao inicializar
     const initAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        await loadAllData(session);
-      } else {
-        set(prev => ({ ...prev, loading: false }));
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          await loadAllData(session);
+        } else {
+          // Sem sessão: liberar sessionLoading para que as rotas possam redirecionar
+          set(prev => ({ ...prev, sessionLoading: false, loading: false }));
+        }
+      } catch (e) {
+        console.error('[Auth] Erro ao inicializar sessão:', e);
+        set(prev => ({ ...prev, sessionLoading: false, loading: false }));
       }
     };
+
     initAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session) {
-        await loadAllData(session);
-      } else {
-        set(prev => ({
-          ...prev, 
-          currentUser: null, 
-          session: null,
+    // Listener para mudanças de estado de autenticação
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[Auth] Evento:', event);
+      if (event === 'SIGNED_IN' && session) {
+        // Dados já carregados pelo login() — não recarregar desnecessariamente
+        // exceto se currentUser não estiver definido (ex: reload da página)
+        if (!session) return;
+      } else if (event === 'SIGNED_OUT') {
+        set(() => ({
+          ...INITIAL_STATE,
+          sessionLoading: false,
           loading: false,
-          categories: [], 
-          products: [], 
-          movements: [], 
-          invitations: [], 
-          users: []
         }));
+      } else if (event === 'TOKEN_REFRESHED' && session) {
+        // Apenas atualizar a sessão sem recarregar todos os dados
+        set(prev => ({ ...prev, session }));
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
+      set(prev => ({ ...prev, loading: true }));
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return { success: false, error: error.message };
-      
-      if (data.session) {
-        // Garantir que carregamos os dados antes de retornar
-        await loadAllData(data.session);
-        return { success: true };
+
+      if (error) {
+        set(prev => ({ ...prev, loading: false }));
+        return { success: false, error: error.message };
       }
-      
-      return { success: false, error: 'Sessão não iniciada.' };
+
+      if (!data.session) {
+        set(prev => ({ ...prev, loading: false }));
+        return { success: false, error: 'Sessão não iniciada. Tente novamente.' };
+      }
+
+      // Carregar todos os dados antes de sinalizar sucesso
+      await loadAllData(data.session);
+      return { success: true };
     } catch (err: any) {
+      set(prev => ({ ...prev, loading: false }));
       return { success: false, error: err.message || 'Erro ao realizar login.' };
     }
   };
 
   const logout = async () => {
     await supabase.auth.signOut();
+    set(() => ({
+      ...INITIAL_STATE,
+      sessionLoading: false,
+      loading: false,
+    }));
   };
 
   const addCategory = async (data: Omit<Category, 'id' | 'createdAt'>) => {
-    const { data: newCat, error } = await supabase.from('categories').insert({
+    const { data: newCat } = await supabase.from('categories').insert({
       name: data.name,
       description: data.description,
       organization_id: state.currentUser?.organizationId,
+      created_by: state.currentUser?.id,
     }).select().single();
-    
+
     if (newCat) {
       set(prev => ({
         ...prev, categories: [...prev.categories, {
@@ -320,6 +331,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       unit: data.unit,
       description: data.description,
       organization_id: state.currentUser?.organizationId,
+      created_by: state.currentUser?.id,
     }).select().single();
 
     if (newProd) {
@@ -348,15 +360,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const deleteProduct = async (id: string) => {
     const hasMovements = state.movements.some(m => m.productId === id);
-    if (hasMovements) return { success: false, error: 'Produto possui movimentações e não pode ser excluído. Registre um ajuste de estoque se necessário.' };
+    if (hasMovements) return { success: false, error: 'Produto possui movimentações e não pode ser excluído.' };
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) return { success: false, error: error.message };
+    set(prev => ({ ...prev, products: prev.products.filter(p => p.id !== id) }));
     return { success: true };
   };
 
   const addMovement = async ({ productId, type, quantity, observation }: any) => {
     if (type === 'saida') {
-      const { data: stockView } = await supabase.from('stock_current').select('current_stock').eq('product_id', productId).single();
+      const { data: stockView } = await supabase
+        .from('stock_current')
+        .select('current_stock')
+        .eq('product_id', productId)
+        .single();
       const currentStock = stockView?.current_stock || 0;
       if (quantity > currentStock) {
         return { success: false, error: `Estoque insuficiente. Disponível: ${currentStock} unidades.` };
@@ -364,79 +381,75 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     const { data: newMov, error } = await supabase.from('movements').insert({
-      product_id: productId, 
-      type, 
-      quantity, 
+      product_id: productId,
+      type,
+      quantity,
       observation,
       created_by: state.currentUser?.id,
-      organization_id: state.currentUser?.organizationId
+      organization_id: state.currentUser?.organizationId,
     }).select().single();
 
     if (error) return { success: false, error: error.message };
-    
+
     set(prev => ({
-      ...prev, movements: [...prev.movements, {
-        id: newMov.id, productId: newMov.product_id, type: newMov.type as any, quantity: newMov.quantity,
-        observation: newMov.observation, createdAt: newMov.created_at, createdBy: newMov.created_by
-      }]
+      ...prev, movements: [{
+        id: newMov.id, productId: newMov.product_id, type: newMov.type as MovementType,
+        quantity: newMov.quantity, observation: newMov.observation,
+        createdAt: newMov.created_at, createdBy: newMov.created_by
+      }, ...prev.movements]
     }));
     return { success: true };
   };
 
   const updateSettings = async (data: Partial<Settings>) => {
-    const updates: any = {};
+    const updates: any = { organization_id: state.currentUser?.organizationId };
     if (data.alertConfig) {
       if (data.alertConfig.enabled !== undefined) updates.alert_enabled = data.alertConfig.enabled;
       if (data.alertConfig.whatsappNumber !== undefined) updates.whatsapp_number = data.alertConfig.whatsappNumber;
       if (data.alertConfig.minIntervalHours !== undefined) updates.min_interval_hours = data.alertConfig.minIntervalHours;
       if (data.alertConfig.lastAlertSent !== undefined) updates.last_alert_sent = data.alertConfig.lastAlertSent;
     }
-    updates.organization_id = state.currentUser?.organizationId;
-    await supabase.from('settings').upsert(updates).eq('organization_id', state.currentUser?.organizationId);
+    await supabase.from('settings').upsert(updates, { onConflict: 'organization_id' });
     set(prev => ({
       ...prev, settings: { alertConfig: { ...prev.settings.alertConfig, ...(data.alertConfig || {}) } }
     }));
   };
 
   const inviteUser = async (email: string, role: UserRole) => {
-    // Chamando a Edge Function para enviar o e-mail oficial
     const { data, error } = await supabase.functions.invoke('invite-user', {
-      body: { 
-        email, 
-        role, 
-        organizationId: state.currentUser?.organizationId 
+      body: {
+        email,
+        role,
+        organizationId: state.currentUser?.organizationId
       }
     });
 
     if (error) {
-      console.error('Edge Function Error:', error);
-      // Tentamos extrair a mensagem de erro que vem no JSON da função
       let errorMessage = error.message;
       try {
         const errJson = await error.context?.json();
-        if (errJson && errJson.error) errorMessage = errJson.error;
-      } catch (e) {
-        // Fallback para a mensagem original
-      }
+        if (errJson?.error) errorMessage = errJson.error;
+      } catch (e) { /* fallback */ }
       return { success: false, error: errorMessage };
     }
 
-    // Também inserimos na nossa tabela local para rastreamento no dashboard
-    await supabase.from('invitations').insert({ 
-      email, 
-      role, 
-      organization_id: state.currentUser?.organizationId 
+    await supabase.from('invitations').insert({
+      email,
+      role,
+      organization_id: state.currentUser?.organizationId,
+      invited_by: state.currentUser?.id,
     });
 
-    // Recarregar convites da organização
-    const { data: invData } = await supabase.from('invitations')
+    const { data: invData } = await supabase
+      .from('invitations')
       .select('*')
       .eq('organization_id', state.currentUser?.organizationId);
+
     if (invData) {
       set(prev => ({
         ...prev, invitations: invData.map((i: any) => ({
-          id: i.id, email: i.email, role: i.role, token: i.token, invitedBy: i.invited_by,
-          createdAt: i.created_at, expiresAt: i.expires_at, used: i.used
+          id: i.id, email: i.email, role: i.role, token: i.token,
+          invitedBy: i.invited_by, createdAt: i.created_at, expiresAt: i.expires_at, used: !!i.used
         }))
       }));
     }
@@ -455,21 +468,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase.functions.invoke('delete-user', {
         body: { userId }
       });
-
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-
-      // Atualizar estado local tirando o profile
       set(prev => ({ ...prev, users: prev.users.filter(u => u.id !== userId) }));
       return { success: true };
     } catch (err: any) {
-      console.error("Erro ao deletar usuário:", err);
       return { success: false, error: err.message || 'Erro ao deletar usuário.' };
     }
   };
 
-  const acceptInvitation = async (token: string, name: string, password: string) => {
-    return { success: false, error: 'Ação não implementada no MVP via Auth API.' };
+  const acceptInvitation = async (_token: string, _name: string, _password: string) => {
+    return { success: false, error: 'Funcionalidade disponível na versão completa.' };
   };
 
   const updateUserStatus = async (userId: string, status: User['status']) => {
@@ -488,8 +497,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider
       value={{
-        ...state, login, logout, addCategory, updateCategory, deleteCategory, addProduct, updateProduct,
-        deleteProduct, addMovement, updateSettings, inviteUser, acceptInvitation, updateUserStatus, getProductStock,
+        ...state, login, logout, addCategory, updateCategory, deleteCategory,
+        addProduct, updateProduct, deleteProduct, addMovement, updateSettings,
+        inviteUser, acceptInvitation, updateUserStatus, getProductStock,
         deleteInvitation, deleteUser
       }}
     >
