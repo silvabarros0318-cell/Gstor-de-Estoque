@@ -173,13 +173,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }));
 
       let mappedSettings = DEFAULT_SETTINGS;
-      if (setData) {
+      if (setData && setData.length > 0) {
+        const settings = setData[0];
         mappedSettings = {
           alertConfig: {
-            enabled: setData.alert_enabled,
-            whatsappNumber: setData.whatsapp_number || '',
-            minIntervalHours: setData.min_interval_hours,
-            lastAlertSent: setData.last_alert_sent || ''
+            enabled: settings.alert_enabled,
+            whatsappNumber: settings.whatsapp_number || '',
+            minIntervalHours: settings.min_interval_hours,
+            lastAlertSent: settings.last_alert_sent || ''
           }
         };
       }
@@ -254,7 +255,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const { data: newCat, error } = await supabase.from('categories').insert({
       name: data.name,
       description: data.description,
-      organization_id: currentUser?.organizationId,
+      organization_id: state.currentUser?.organizationId,
     }).select().single();
     
     if (newCat) {
@@ -291,7 +292,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       min_stock: data.minStock,
       unit: data.unit,
       description: data.description,
-      organization_id: currentUser?.organizationId,
+      organization_id: state.currentUser?.organizationId,
     }).select().single();
 
     if (newProd) {
@@ -341,7 +342,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       quantity, 
       observation,
       created_by: state.currentUser?.id,
-      organization_id: currentUser?.organizationId
+      organization_id: state.currentUser?.organizationId
     }).select().single();
 
     if (error) return { success: false, error: error.message };
@@ -363,8 +364,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (data.alertConfig.minIntervalHours !== undefined) updates.min_interval_hours = data.alertConfig.minIntervalHours;
       if (data.alertConfig.lastAlertSent !== undefined) updates.last_alert_sent = data.alertConfig.lastAlertSent;
     }
-    updates.organization_id = currentUser?.organizationId;
-    await supabase.from('settings').upsert(updates).eq('organization_id', currentUser?.organizationId);
+    updates.organization_id = state.currentUser?.organizationId;
+    await supabase.from('settings').upsert(updates).eq('organization_id', state.currentUser?.organizationId);
     set(prev => ({
       ...prev, settings: { alertConfig: { ...prev.settings.alertConfig, ...(data.alertConfig || {}) } }
     }));
