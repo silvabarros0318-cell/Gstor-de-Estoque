@@ -22,7 +22,36 @@ function PrivateRoute({ element, adminOnly = false, operatorOrAdmin = false }: {
 }
 
 function AppRoutes() {
-  const { currentUser } = useApp();
+  const { currentUser, isInitializing } = useApp();
+
+  if (isInitializing) {
+    return (
+      <div style={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        flexDirection: 'column',
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        background: 'linear-gradient(135deg, #0f1a52 0%, #090e27 100%)',
+        fontFamily: 'Inter, sans-serif',
+        color: 'white'
+      }}>
+        <div className="spinner" style={{ 
+          width: '40px', 
+          height: '40px', 
+          border: '3px solid rgba(255,255,255,0.1)', 
+          borderTopColor: '#4a70d8', 
+          borderRadius: '50%', 
+          animation: 'spin 1s linear infinite', 
+          marginBottom: '1rem' 
+        }} />
+        <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.05em' }}>CARREGANDO...</p>
+        <style>{`
+          @keyframes spin { to { transform: rotate(360deg); } }
+        `}</style>
+      </div>
+    );
+  }
 
   return (
     <Routes>

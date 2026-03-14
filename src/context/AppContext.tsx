@@ -75,6 +75,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const loadAllData = async (userEmail: string) => {
     try {
+      set(prev => ({ ...prev, isInitializing: true }));
       console.log('Loading all data for user:', userEmail);
       
       // Primeiro, carregar o perfil do usuário logado para obter organizationId
@@ -141,6 +142,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         failedLoginAttempts: 0,
         organizationId: userProfile.organization_id,
       } : null;
+      
+      if (!mappedCurrentUser) {
+        console.warn('No mapped current user, initialization might be incomplete');
+      }
       
       console.log('Mapped current user:', mappedCurrentUser);
 
