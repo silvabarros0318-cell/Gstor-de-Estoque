@@ -39,7 +39,8 @@ function SectionCard({ icon, title, subtitle, children }: {
 
 export default function ConfiguracoesPage() {
   const { 
-    settings, updateSettings, products, categories, movements, invitations, users, inviteUser, deleteInvitation, deleteUser 
+    settings, updateSettings, products, categories, movements, invitations, users,
+    inviteUser, deleteInvitation, deleteUser, currentUser
   } = useApp();
   const { showToast } = useToast();
 
@@ -229,7 +230,6 @@ export default function ConfiguracoesPage() {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {users.map((user) => {
-            const { currentUser } = useApp(); // Local access to identify self
             const isSelf = user.id === currentUser?.id;
 
             return (
