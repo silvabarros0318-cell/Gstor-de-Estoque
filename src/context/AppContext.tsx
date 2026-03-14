@@ -101,7 +101,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         { data: setData, error: setError },
         { data: invData, error: invError },
       ] = await Promise.all([
-        supabase.from('profiles').select('*'),
+        supabase.from('profiles').select('*').eq('organization_id', userOrganizationId),
         supabase.from('categories').select('*').eq('organization_id', userOrganizationId),
         supabase.from('products').select('*').eq('organization_id', userOrganizationId),
         supabase.from('movements').select('*').eq('organization_id', userOrganizationId),
