@@ -42,7 +42,8 @@ interface AppContextValue extends AppState {
   }) => Promise<{ success: boolean; error?: string }>;
   updateSettings: (data: Partial<Settings>) => Promise<void>;
   inviteUser: (email: string, role: UserRole) => Promise<{ success: boolean; error?: string }>;
-  acceptInvitation: (token: string, name: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  acceptInvitation: (token: string, newPassword?: string) => Promise<{ success: boolean; error?: string }>;
+  updatePassword: (password: string) => Promise<{ success: boolean; error?: string }>;
   updateUserStatus: (userId: string, status: User['status']) => Promise<void>;
   getProductStock: (productId: string) => number;
   deleteInvitation: (id: string) => Promise<{ success: boolean; error?: string }>;
@@ -477,8 +478,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const acceptInvitation = async (_token: string, _name: string, _password: string) => {
+  const acceptInvitation = async (_token: string, _newPassword?: string) => {
     return { success: false, error: 'Funcionalidade disponível na versão completa.' };
+  };
+
+  const updatePassword = async (password: string) => {
+    try {
+      const { data: authData, error: authErr } = await supabase.auth.updateUser({ password });
+      if (authErr) throw authErr;
+
+      const userId = authData.user?.id;
+      if (!userId) throw new Error('Usuário não encontrado.');
+
+      const { error: profileErr } = await supabase
+        .from('profiles')
+        .update({ status: 'active' })
+        .eq('id', userId);
+
+      if (profileErr) throw profileErr;
+
+      // Update local state
+      setState(prev => prev.currentUser ? {
+        ...prev,
+        currentUser: { ...prev.currentUser, status: 'active' }
+      } : prev);
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Erro ao definir senha:', error);
+      return { success: false, error: error.message };
+    }
   };
 
   const updateUserStatus = async (userId: string, status: User['status']) => {
@@ -499,7 +528,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       value={{
         ...state, login, logout, addCategory, updateCategory, deleteCategory,
         addProduct, updateProduct, deleteProduct, addMovement, updateSettings,
-        inviteUser, acceptInvitation, updateUserStatus, getProductStock,
+        inviteUser, acceptInvitation, updatePassword, updateUserStatus, getProductStock,
         deleteInvitation, deleteUser
       }}
     >

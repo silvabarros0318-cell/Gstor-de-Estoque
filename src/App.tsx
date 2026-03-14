@@ -1,8 +1,9 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import { ToastProvider } from './context/ToastContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import Login from './pages/Login';
+import DefinirSenha from './pages/DefinirSenha';
 import Dashboard from './pages/Dashboard';
 import Produtos from './pages/Produtos';
 import Movimentacoes from './pages/Movimentacoes';
@@ -52,6 +53,7 @@ function PrivateRoute({
   operatorOrAdmin?: boolean;
 }) {
   const { currentUser, sessionLoading, loading } = useApp();
+  const location = useLocation();
 
   // Aguardar: verificação de sessão OU carregamento de dados
   if (sessionLoading || loading) {
@@ -61,6 +63,11 @@ function PrivateRoute({
   // Sem usuário logado → redireciona para login
   if (!currentUser) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Usuário convidado precisando definir senha
+  if (currentUser.status === 'pending' && location.pathname !== '/definir-senha') {
+    return <Navigate to="/definir-senha" replace />;
   }
 
   // Permissão insuficiente
@@ -97,6 +104,15 @@ function AppRoutes() {
             ? <Navigate to="/dashboard" replace />
             : <Login />
         }
+      />
+
+      <Route 
+        path="/definir-senha" 
+        element={
+          currentUser && !loading
+            ? (currentUser.status === 'pending' ? <DefinirSenha /> : <Navigate to="/dashboard" replace />)
+            : <Navigate to="/login" replace />
+        } 
       />
 
       {/* Rotas protegidas dentro do DashboardLayout */}
