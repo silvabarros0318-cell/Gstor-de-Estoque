@@ -3,16 +3,18 @@ import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ArrowUpRight, ArrowDownRight, Search, Filter, Plus } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Search, Filter, Plus, Trash2 } from 'lucide-react';
 import type { MovementType, User } from '../types';
 
 export default function MovimentacoesPage() {
-  const { products, movements, addMovement, currentUser, getProductStock, users } = useApp();
+  const { products, movements, addMovement, currentUser, getProductStock, users, cancelMovement } = useApp();
   const { showToast } = useToast();
+
+  const isAdmin = currentUser?.role === 'admin';
 
   const [form, setForm] = useState<{ productId: string; type: MovementType; quantity: string; observation: string }>({
     productId: products[0]?.id ?? '',
-    type: 'entrada',
+    type: isAdmin ? 'entrada' : 'saida',
     quantity: '',
     observation: '',
   });
@@ -42,7 +44,20 @@ export default function MovimentacoesPage() {
       setForm({ productId: form.productId, type: form.type, quantity: '', observation: '' });
     } else {
       setFormError(result.error ?? 'Erro ao registrar movimentação.');
+      setFormError(result.error ?? 'Erro ao registrar movimentação.');
       showToast('error', result.error ?? 'Erro ao registrar movimentação.');
+    }
+  };
+
+  const handleCancel = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja cancelar esta movimentação?')) return;
+    setLoading(true);
+    const result = await cancelMovement(id);
+    setLoading(false);
+    if (result.success) {
+      showToast('success', 'Movimentação cancelada com sucesso!');
+    } else {
+      showToast('error', result.error || 'Erro ao cancelar movimentação.');
     }
   };
 
@@ -106,7 +121,9 @@ export default function MovimentacoesPage() {
                 <div className="form-group">
                   <label className="form-label">Tipo <span>*</span></label>
                   <div style={{ display: 'flex', gap: '0.75rem' }}>
-                    {(['entrada', 'saida'] as MovementType[]).map((t) => (
+                    {(['entrada', 'saida'] as MovementType[])
+                      .filter(t => t === 'saida' || isAdmin)
+                      .map((t) => (
                       <button
                         key={t}
                         type="button"
@@ -193,13 +210,22 @@ export default function MovimentacoesPage() {
                 <th>Quantidade</th>
                 <th>Usuário</th>
                 <th>Observação</th>
+                <th style={{ textAlign: 'right' }}>Ações</th>
               </tr>
             </thead>
             <tbody>
               {filteredMovements.length === 0 ? (
-                <tr><td colSpan={6}><div className="empty-state"><div className="empty-state-text">Nenhuma movimentação encontrada</div></div></td></tr>
+                <tr><td colSpan={7}><div className="empty-state"><div className="empty-state-text">Nenhuma movimentação encontrada</div></div></td></tr>
               ) : (
-                filteredMovements.map((m) => (
+                filteredMovements.map((m) => {
+                  const movDateObj = new Date(m.createdAt);
+                  movDateObj.setMinutes(movDateObj.getMinutes() - movDateObj.getTimezoneOffset());
+                  const isToday = movDateObj.toISOString().split('T')[0] === new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+                  
+                  const isOwner = m.createdBy === currentUser?.id;
+                  const canCancel = !m.closed && isToday && (isAdmin || isOwner);
+
+                  return (
                   <tr key={m.id}>
                     <td style={{ color: 'var(--neutral-500)', fontSize: '0.8125rem' }}>
                       {format(new Date(m.createdAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}
@@ -221,8 +247,21 @@ export default function MovimentacoesPage() {
                       {users.find((u: User) => u.id === m.createdBy)?.name || 'Sistema'}
                     </td>
                     <td style={{ color: 'var(--neutral-500)' }}>{m.observation || '—'}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      {canCancel && (
+                        <button 
+                          className="btn btn-sm btn-ghost" 
+                          style={{ color: 'var(--danger-600)', padding: '0.25rem' }}
+                          onClick={() => handleCancel(m.id)}
+                          title="Cancelar movimentação"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session } from '@supabase/supabase-js';
+import { format } from 'date-fns';
 import { supabase } from '../lib/supabase';
 import type {
   Category,
@@ -10,6 +11,7 @@ import type {
   Settings,
   User,
   UserRole,
+  DailyClosing,
 } from '../types';
 
 interface AppState {
@@ -23,6 +25,7 @@ interface AppState {
   movements: Movement[];
   settings: Settings;
   invitations: Invitation[];
+  dailyClosings: DailyClosing[];
 }
 
 interface AppContextValue extends AppState {
@@ -48,6 +51,8 @@ interface AppContextValue extends AppState {
   getProductStock: (productId: string) => number;
   deleteInvitation: (id: string) => Promise<{ success: boolean; error?: string }>;
   deleteUser: (userId: string) => Promise<{ success: boolean; error?: string }>;
+  closeDay: () => Promise<{ success: boolean; error?: string; closing?: DailyClosing }>;
+  cancelMovement: (id: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -72,6 +77,7 @@ const INITIAL_STATE: AppState = {
   movements: [],
   settings: DEFAULT_SETTINGS,
   invitations: [],
+  dailyClosings: [],
 };
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -111,6 +117,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         { data: movData },
         { data: setData },
         { data: invData },
+        { data: closingData },
       ] = await Promise.all([
         supabase.from('profiles').select('*').eq('organization_id', orgId),
         supabase.from('categories').select('*').eq('organization_id', orgId),
@@ -118,6 +125,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         supabase.from('movements').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
         supabase.from('settings').select('*').eq('organization_id', orgId).single(),
         supabase.from('invitations').select('*').eq('organization_id', orgId),
+        supabase.from('daily_closings').select('*').eq('organization_id', orgId).order('date', { ascending: false }),
       ]);
 
       // Mapear current user
@@ -158,6 +166,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         minStock: p.min_stock,
         unit: p.unit,
         description: p.description,
+        costPrice: p.cost_price ? Number(p.cost_price) : 0,
+        salePrice: p.sale_price ? Number(p.sale_price) : 0,
         createdAt: p.created_at,
         createdBy: p.created_by,
       }));
@@ -168,6 +178,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         type: m.type as MovementType,
         quantity: m.quantity,
         observation: m.observation,
+        unitCost: m.unit_cost ? Number(m.unit_cost) : 0,
+        unitPrice: m.unit_price ? Number(m.unit_price) : 0,
+        totalCost: m.total_cost ? Number(m.total_cost) : 0,
+        totalRevenue: m.total_revenue ? Number(m.total_revenue) : 0,
+        profit: m.profit ? Number(m.profit) : 0,
+        closed: !!m.closed,
         createdAt: m.created_at,
         createdBy: m.created_by,
       }));
@@ -195,6 +211,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         used: !!i.used,
       }));
 
+      const mappedDailyClosings: DailyClosing[] = (closingData || []).map((c: any) => ({
+        id: c.id,
+        organizationId: c.organization_id,
+        date: c.date,
+        totalRevenue: Number(c.total_revenue),
+        totalCost: Number(c.total_cost),
+        totalProfit: Number(c.total_profit),
+        totalProductsSold: Number(c.total_products_sold),
+        createdAt: c.created_at,
+      }));
+
       set(prev => ({
         ...prev,
         sessionLoading: false,
@@ -206,6 +233,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         movements: mappedMovements,
         settings: mappedSettings,
         invitations: mappedInvitations,
+        dailyClosings: mappedDailyClosings,
       }));
 
       console.log('[Auth] Dados carregados com sucesso!');
@@ -331,6 +359,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       min_stock: data.minStock,
       unit: data.unit,
       description: data.description,
+      cost_price: data.costPrice,
+      sale_price: data.salePrice,
       organization_id: state.currentUser?.organizationId,
       created_by: state.currentUser?.id,
     }).select().single();
@@ -340,6 +370,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ...prev, products: [...prev.products, {
           id: newProd.id, name: newProd.name, categoryId: newProd.category_id,
           minStock: newProd.min_stock, unit: newProd.unit, description: newProd.description,
+          costPrice: newProd.cost_price ? Number(newProd.cost_price) : 0,
+          salePrice: newProd.sale_price ? Number(newProd.sale_price) : 0,
           createdAt: newProd.created_at, createdBy: newProd.created_by
         }]
       }));
@@ -353,6 +385,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       min_stock: data.minStock,
       unit: data.unit,
       description: data.description,
+      cost_price: data.costPrice,
+      sale_price: data.salePrice,
     }).eq('id', id);
     set(prev => ({
       ...prev, products: prev.products.map(p => p.id === id ? { ...p, ...data } : p)
@@ -381,11 +415,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    let unitCost, unitPrice, totalCost, totalRevenue, profit;
+    
+    if (type === 'saida') {
+      const prod = state.products.find(p => p.id === productId);
+      unitCost = prod?.costPrice || 0;
+      unitPrice = prod?.salePrice || 0;
+      totalCost = unitCost * quantity;
+      totalRevenue = unitPrice * quantity;
+      profit = totalRevenue - totalCost;
+    }
+
     const { data: newMov, error } = await supabase.from('movements').insert({
       product_id: productId,
       type,
       quantity,
       observation,
+      unit_cost: unitCost,
+      unit_price: unitPrice,
+      total_cost: totalCost,
+      total_revenue: totalRevenue,
+      profit,
       created_by: state.currentUser?.id,
       organization_id: state.currentUser?.organizationId,
     }).select().single();
@@ -396,6 +446,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ...prev, movements: [{
         id: newMov.id, productId: newMov.product_id, type: newMov.type as MovementType,
         quantity: newMov.quantity, observation: newMov.observation,
+        unitCost: newMov.unit_cost ? Number(newMov.unit_cost) : 0,
+        unitPrice: newMov.unit_price ? Number(newMov.unit_price) : 0,
+        totalCost: newMov.total_cost ? Number(newMov.total_cost) : 0,
+        totalRevenue: newMov.total_revenue ? Number(newMov.total_revenue) : 0,
+        profit: newMov.profit ? Number(newMov.profit) : 0,
+        closed: !!newMov.closed,
         createdAt: newMov.created_at, createdBy: newMov.created_by
       }, ...prev.movements]
     }));
@@ -523,13 +579,126 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .reduce((acc, curr) => (curr.type === 'entrada' ? acc + curr.quantity : acc - curr.quantity), 0);
   };
 
+  const closeDay = async (): Promise<{ success: boolean; error?: string; closing?: DailyClosing }> => {
+    try {
+      const todayDate = new Date();
+      // Ajuste de fuso horário local para garantir a data correta no string ISO
+      todayDate.setMinutes(todayDate.getMinutes() - todayDate.getTimezoneOffset());
+      const today = todayDate.toISOString().split('T')[0];
+
+      const isAlreadyClosed = state.dailyClosings.some(c => c.date === today);
+      if (isAlreadyClosed) {
+        return { success: false, error: `O caixa do dia ${format(new Date(), 'dd/MM/yyyy')} já foi fechado.` };
+      }
+
+      const movementsOfDay = state.movements.filter(m => {
+        if (m.closed) return false;
+        
+        const movDate = new Date(m.createdAt);
+        movDate.setMinutes(movDate.getMinutes() - movDate.getTimezoneOffset());
+        const dateStr = movDate.toISOString().split('T')[0];
+        
+        return dateStr === today;
+      });
+
+      const salesToClose = movementsOfDay.filter(m => m.type === 'saida');
+
+      if (salesToClose.length === 0) {
+        return { success: false, error: 'Não há vendas abertas registradas hoje para fechar o caixa.' };
+      }
+
+      const totalRevenue = salesToClose.reduce((acc, current) => acc + (current.totalRevenue || 0), 0);
+      const totalCost = salesToClose.reduce((acc, current) => acc + (current.totalCost || 0), 0);
+      const totalProfit = salesToClose.reduce((acc, current) => acc + (current.profit || 0), 0);
+      const totalProductsSold = salesToClose.reduce((acc, current) => acc + current.quantity, 0);
+
+      const { data: closingData, error: closingError } = await supabase.from('daily_closings').insert({
+        organization_id: state.currentUser?.organizationId,
+        date: today,
+        total_revenue: totalRevenue,
+        total_cost: totalCost,
+        total_profit: totalProfit,
+        total_products_sold: totalProductsSold
+      }).select().single();
+
+      if (closingError) throw closingError;
+
+      const movementIds = movementsOfDay.map(m => m.id);
+      
+      const { error: updateError } = await supabase.from('movements')
+        .update({ closed: true })
+        .in('id', movementIds);
+      
+      if (updateError) throw updateError;
+
+      const newClosing: DailyClosing = {
+        id: closingData.id,
+        organizationId: closingData.organization_id,
+        date: closingData.date,
+        totalRevenue: Number(closingData.total_revenue),
+        totalCost: Number(closingData.total_cost),
+        totalProfit: Number(closingData.total_profit),
+        totalProductsSold: Number(closingData.total_products_sold),
+        createdAt: closingData.created_at,
+      };
+
+      set(prev => ({
+        ...prev,
+        dailyClosings: [newClosing, ...prev.dailyClosings],
+        movements: prev.movements.map(m => movementIds.includes(m.id) ? { ...m, closed: true } : m)
+      }));
+
+      return { success: true, closing: newClosing };
+    } catch (e: any) {
+      return { success: false, error: e.message || 'Erro ao fechar o dia.' };
+    }
+  };
+
+  const cancelMovement = async (id: string) => {
+    try {
+      const movement = state.movements.find((m) => m.id === id);
+      if (!movement) return { success: false, error: 'Movimentação não encontrada.' };
+
+      if (movement.closed) {
+        return { success: false, error: 'Esta movimentação já foi incluída em um fechamento e não pode ser cancelada.' };
+      }
+
+      const todayDate = new Date();
+      todayDate.setMinutes(todayDate.getMinutes() - todayDate.getTimezoneOffset());
+      const today = todayDate.toISOString().split('T')[0];
+
+      const movDate = new Date(movement.createdAt);
+      movDate.setMinutes(movDate.getMinutes() - movDate.getTimezoneOffset());
+      const movDay = movDate.toISOString().split('T')[0];
+
+      if (today !== movDay) {
+        return { success: false, error: 'Só é permitido cancelar movimentações do dia atual.' };
+      }
+
+      const isOwner = movement.createdBy === state.currentUser?.id;
+      const isAdmin = state.currentUser?.role === 'admin';
+
+      if (!isAdmin && !isOwner) {
+        return { success: false, error: 'Você só pode cancelar suas próprias movimentações.' };
+      }
+
+      const { error } = await supabase.from('movements').delete().eq('id', id);
+      if (error) throw error;
+
+      set(prev => ({ ...prev, movements: prev.movements.filter(m => m.id !== id) }));
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message || 'Erro ao cancelar movimentação.' };
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
         ...state, login, logout, addCategory, updateCategory, deleteCategory,
         addProduct, updateProduct, deleteProduct, addMovement, updateSettings,
         inviteUser, acceptInvitation, updatePassword, updateUserStatus, getProductStock,
-        deleteInvitation, deleteUser
+        deleteInvitation, deleteUser, closeDay, cancelMovement
       }}
     >
       {children}

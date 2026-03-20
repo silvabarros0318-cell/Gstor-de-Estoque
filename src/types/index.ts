@@ -30,6 +30,8 @@ export interface Product {
   minStock: number;
   unit: string;
   description?: string;
+  costPrice?: number;
+  salePrice?: number;
   createdAt: string;
   createdBy: string;
 }
@@ -42,8 +44,25 @@ export interface Movement {
   type: MovementType;
   quantity: number;
   observation?: string;
+  unitCost?: number;
+  unitPrice?: number;
+  totalCost?: number;
+  totalRevenue?: number;
+  profit?: number;
+  closed?: boolean;
   createdAt: string;
   createdBy: string;
+}
+
+export interface DailyClosing {
+  id: string;
+  organizationId: string;
+  date: string;
+  totalRevenue: number;
+  totalCost: number;
+  totalProfit: number;
+  totalProductsSold: number;
+  createdAt: string;
 }
 
 export interface StockItem {

@@ -11,11 +11,14 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.99.1",
     "date-fns": "^4.1.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.479.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.2.0",
-    "recharts": "^2.15.1"
+    "recharts": "^2.15.1",
+    "twilio": "^5.13.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.10",

@@ -112,7 +112,8 @@ export default function ConfiguracoesPage() {
         <p className="page-desc">Gerencie alertas, WhatsApp e usuários do sistema</p>
       </div>
 
-      {/* WhatsApp */}
+      {/* WhatsApp - Temporariamente Oculto */}
+      {/* 
       <SectionCard
         icon={<MessageSquare size={18} color="var(--success-600)" />}
         title="Configuração de WhatsApp"
@@ -168,6 +169,7 @@ export default function ConfiguracoesPage() {
           </div>
         </div>
       </SectionCard>
+      */}
 
       {/* Alertas */}
       <SectionCard

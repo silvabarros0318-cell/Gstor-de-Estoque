@@ -61,7 +61,7 @@ export default function ProdutosPage() {
   // Product modal
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [productForm, setProductForm] = useState({ name: '', categoryId: '', minStock: '', unit: 'Unidade', description: '' });
+  const [productForm, setProductForm] = useState({ name: '', categoryId: '', minStock: '', unit: 'Unidade', description: '', costPrice: '', salePrice: '' });
   const [confirmDeleteProduct, setConfirmDeleteProduct] = useState<Product | null>(null);
 
   // Category modal
@@ -83,13 +83,13 @@ export default function ProdutosPage() {
   // Product handlers
   const openNewProduct = () => {
     setEditingProduct(null);
-    setProductForm({ name: '', categoryId: categories[0]?.id ?? '', minStock: '', unit: 'Unidade', description: '' });
+    setProductForm({ name: '', categoryId: categories[0]?.id ?? '', minStock: '', unit: 'Unidade', description: '', costPrice: '', salePrice: '' });
     setShowProductModal(true);
   };
 
   const openEditProduct = (p: Product) => {
     setEditingProduct(p);
-    setProductForm({ name: p.name, categoryId: p.categoryId, minStock: String(p.minStock), unit: p.unit, description: p.description ?? '' });
+    setProductForm({ name: p.name, categoryId: p.categoryId, minStock: String(p.minStock), unit: p.unit, description: p.description ?? '', costPrice: p.costPrice ? String(p.costPrice) : '', salePrice: p.salePrice ? String(p.salePrice) : '' });
     setShowProductModal(true);
   };
 
@@ -104,6 +104,8 @@ export default function ProdutosPage() {
       minStock: Number(productForm.minStock),
       unit: productForm.unit,
       description: productForm.description,
+      costPrice: productForm.costPrice ? Number(productForm.costPrice) : 0,
+      salePrice: productForm.salePrice ? Number(productForm.salePrice) : 0,
     };
     if (editingProduct) {
       await updateProduct(editingProduct.id, data);
@@ -284,9 +286,21 @@ export default function ProdutosPage() {
               </select>
             </div>
           </div>
-          <div className="form-group">
-            <label className="form-label">Estoque Mínimo <span>*</span></label>
-            <input className="form-input" type="number" min="0" placeholder="Ex: 20" value={productForm.minStock} onChange={(e) => setProductForm({ ...productForm, minStock: e.target.value })} />
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Estoque Mínimo <span>*</span></label>
+              <input className="form-input" type="number" min="0" placeholder="Ex: 20" value={productForm.minStock} onChange={(e) => setProductForm({ ...productForm, minStock: e.target.value })} />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Preço de Custo (Kz)</label>
+              <input className="form-input" type="number" step="0.01" min="0" placeholder="0,00" value={productForm.costPrice} onChange={(e) => setProductForm({ ...productForm, costPrice: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Preço de Venda (Kz)</label>
+              <input className="form-input" type="number" step="0.01" min="0" placeholder="0,00" value={productForm.salePrice} onChange={(e) => setProductForm({ ...productForm, salePrice: e.target.value })} />
+            </div>
           </div>
           <div className="form-group">
             <label className="form-label">Descrição</label>

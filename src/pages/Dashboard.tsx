@@ -11,6 +11,11 @@ import {
   ArrowDownRight,
   ArrowLeftRight,
   Warehouse,
+  FileText,
+  DollarSign,
+  TrendingDown,
+  TrendingUp,
+  ShoppingCart
 } from 'lucide-react';
 import {
   LineChart,
@@ -22,14 +27,53 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { useToast } from '../context/ToastContext';
+import { generateClosingPdf } from '../lib/generateClosingPdf';
 
 export default function Dashboard() {
-  const { products, categories, movements, currentUser } = useApp();
+  const { products, categories, movements, currentUser, closeDay } = useApp();
   const navigate = useNavigate();
+  const { showToast } = useToast();
+  
+  const [closingDay, setClosingDay] = useState(false);
+  const [showConfirmClose, setShowConfirmClose] = useState(false);
 
   const stockItems = getStockItems(products, categories, movements);
   const lowStockItems = stockItems.filter((s) => s.isLow);
+
+  const todayDate = new Date();
+  todayDate.setMinutes(todayDate.getMinutes() - todayDate.getTimezoneOffset());
+  const todayStr = todayDate.toISOString().split('T')[0];
+
+  const dayMovements = movements.filter((m) => {
+    const md = new Date(m.createdAt);
+    md.setMinutes(md.getMinutes() - md.getTimezoneOffset());
+    return md.toISOString().split('T')[0] === todayStr;
+  });
+
+  const daySales = dayMovements.filter((m) => m.type === 'saida' && !m.closed);
+
+  const revenueDay = daySales.reduce((acc, current) => acc + (current.totalRevenue || 0), 0);
+  const costDay = daySales.reduce((acc, current) => acc + (current.totalCost || 0), 0);
+  const profitDay = daySales.reduce((acc, current) => acc + (current.profit || 0), 0);
+  const productsSoldDay = daySales.reduce((acc, current) => acc + current.quantity, 0);
+
+  const stockValue = stockItems.reduce((acc, item) => acc + (item.currentStock * (item.product.costPrice || 0)), 0);
+
+  const handleCloseDay = async () => {
+    setClosingDay(true);
+    const result = await closeDay();
+    setClosingDay(false);
+    
+    if (result.success && result.closing) {
+      showToast('success', 'Fechamento realizado com sucesso!');
+      setShowConfirmClose(false);
+      generateClosingPdf(result.closing, daySales, products.map(p => ({...p, costPrice: p.costPrice || 0, salePrice: p.salePrice || 0})));
+    } else {
+      showToast('error', result.error || 'Erro ao fechar o dia.');
+    }
+  };
 
   // Últimas 8 movimentações
   const lastMovements = [...movements]
@@ -63,10 +107,72 @@ export default function Dashboard() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Cabeçalho */}
-      <div>
-        <h2 className="page-title">Dashboard</h2>
-        <p className="page-desc">Visão geral do seu estoque em tempo real</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h2 className="page-title">Dashboard</h2>
+          <p className="page-desc">Visão geral do seu estoque em tempo real</p>
+        </div>
+        {isOperatorOrAdmin && (
+          <button 
+            className="btn btn-primary" 
+            onClick={() => setShowConfirmClose(true)}
+            disabled={daySales.length === 0}
+            title={daySales.length === 0 ? "Nenhuma venda aberta para fechar hoje" : ""}
+          >
+            <FileText size={18} />
+            Fechar Dia
+          </button>
+        )}
       </div>
+
+      {/* Financeiro Cards */}
+      {isOperatorOrAdmin && (
+        <div className="stat-cards" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+          <div className="stat-card green">
+            <div className="stat-card-icon green"><DollarSign size={24} /></div>
+            <div className="stat-card-content">
+              <div className="stat-card-value" style={{ fontSize: '1.25rem' }}>
+                {revenueDay.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}
+              </div>
+              <div className="stat-card-label">Receita do Dia</div>
+            </div>
+          </div>
+          <div className="stat-card red">
+            <div className="stat-card-icon red"><TrendingDown size={24} /></div>
+            <div className="stat-card-content">
+              <div className="stat-card-value" style={{ fontSize: '1.25rem' }}>
+                {costDay.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}
+              </div>
+              <div className="stat-card-label">Custo do Dia</div>
+            </div>
+          </div>
+          <div className="stat-card blue">
+            <div className="stat-card-icon blue"><TrendingUp size={24} /></div>
+            <div className="stat-card-content">
+              <div className="stat-card-value" style={{ fontSize: '1.25rem' }}>
+                {profitDay.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}
+              </div>
+              <div className="stat-card-label">Lucro do Dia</div>
+            </div>
+          </div>
+          <div className="stat-card yellow">
+            <div className="stat-card-icon yellow"><ShoppingCart size={24} /></div>
+            <div className="stat-card-content">
+              <div className="stat-card-value" style={{ fontSize: '1.25rem' }}>{productsSoldDay}</div>
+              <div className="stat-card-label">Produtos Vendidos</div>
+            </div>
+          </div>
+          <div className="stat-card blue">
+            <div className="stat-card-icon blue"><Package size={24} /></div>
+            <div className="stat-card-content">
+              <div className="stat-card-value" style={{ fontSize: '1.25rem' }}>
+                {stockValue.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}
+              </div>
+              <div className="stat-card-label">Valor em Estoque</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stat Cards */}
       <div className="stat-cards">
@@ -108,8 +214,8 @@ export default function Dashboard() {
               <ArrowLeftRight size={24} />
             </div>
             <div className="stat-card-content">
-              <div className="stat-card-value">{movements.length}</div>
-              <div className="stat-card-label">Movimentações</div>
+              <div className="stat-card-value">{dayMovements.filter(m => !m.closed).length}</div>
+              <div className="stat-card-label">Movimentações Ativas Hoje</div>
             </div>
           </div>
         )}
@@ -244,6 +350,31 @@ export default function Dashboard() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+      {/* Modal Confirmar Fechamento */}
+      {showConfirmClose && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: '400px' }}>
+            <div className="confirm-body">
+              <div className="confirm-icon" style={{ background: 'var(--primary-100)', color: 'var(--primary-600)', width: '56px', height: '56px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                <FileText size={28} />
+              </div>
+              <div className="confirm-title" style={{ textAlign: 'center', fontWeight: 600, fontSize: '1.25rem', marginBottom: '0.5rem' }}>Fechar o Dia?</div>
+              <div className="confirm-message" style={{ textAlign: 'center', color: 'var(--neutral-500)', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: 1.5 }}>
+                Tem certeza que deseja fechar o dia de hoje? Isso irá consolidar {productsSoldDay} produtos vendidos e gerar o relatório financeiro em PDF.
+              </div>
+            </div>
+            <div className="modal-footer" style={{ justifyContent: 'center', gap: '0.75rem' }}>
+              <button className="btn btn-ghost" onClick={() => setShowConfirmClose(false)} disabled={closingDay}>
+                Cancelar
+              </button>
+              <button className="btn btn-primary" onClick={handleCloseDay} disabled={closingDay}>
+                {closingDay ? <span className="spinner" /> : null}
+                {closingDay ? 'Fechando...' : 'Confirmar Fechamento'}
+              </button>
+            </div>
           </div>
         </div>
       )}
